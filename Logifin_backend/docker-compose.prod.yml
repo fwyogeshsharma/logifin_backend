@@ -9,14 +9,12 @@ services:
     image: postgres:14-alpine
     container_name: logifin-postgres-prod
     restart: always
-    env_file:
-      - .env.prod
     environment:
-      POSTGRES_DB: ${DB_NAME:-LogifinProd}
-      POSTGRES_USER: ${DB_USER:-logifin_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: Logifin
+      POSTGRES_USER: faber
+      POSTGRES_PASSWORD: faber
     ports:
-      - "${DB_PORT:-6000}:5432"
+      - "6000:5432"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     networks:
@@ -33,14 +31,12 @@ services:
     image: dpage/pgadmin4:latest
     container_name: logifin-pgadmin-prod
     restart: always
-    env_file:
-      - .env.prod
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@logifin.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_DEFAULT_EMAIL: admin@logifin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "${PGADMIN_PORT:-6002}:80"
+      - "6002:80"
     volumes:
       - pgadmin_data_prod:/var/lib/pgadmin
     networks:
@@ -56,33 +52,31 @@ services:
       dockerfile: Dockerfile
     container_name: logifin-backend-prod
     restart: always
-    env_file:
-      - .env.prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-LogifinProd}
-      DB_USER: ${DB_USER:-logifin_user}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-defaultSecretKeyThatShouldBeChangedInProduction123456789}
+      DB_NAME: LogifinProd
+      DB_USER: logifin_user
+      DB_PASSWORD: postgres
+      JWT_SECRET: defaultSecretKeyThatShouldBeChangedInProduction123456789
       SERVER_PORT: 8080
       SHOW_SQL: "false"
       LOG_LEVEL: WARN
       # Email Configuration
-      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_USERNAME: ${EMAIL_USERNAME:-}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@logifin.com}
-      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Logifin}
-      RESET_LINK_BASE_URL: ${RESET_LINK_BASE_URL:-https://logifin.com}
-      TOKEN_EXPIRATION_MINUTES: ${TOKEN_EXPIRATION_MINUTES:-30}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_PORT: 587
+      EMAIL_USERNAME: ""
+      EMAIL_PASSWORD: ""
+      EMAIL_FROM_ADDRESS: noreply@logifin.com
+      EMAIL_FROM_NAME: Logifin
+      RESET_LINK_BASE_URL: https://logifin.com
+      TOKEN_EXPIRATION_MINUTES: 30
+      EMAIL_ENABLED: "true"
       # Swagger Configuration
-      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      SWAGGER_ENABLED: "true"
     ports:
-      - "${APP_PORT:-8081}:8080"
+      - "8081:8080"
     networks:
       - logifin-network-prod
     depends_on:
