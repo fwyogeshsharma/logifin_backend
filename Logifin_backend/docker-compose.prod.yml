@@ -55,7 +55,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: ${DB_PORT:-5432}:5432
       DB_NAME: ${DB_NAME:-LogifinProd}
       DB_USER: ${DB_USER:-logifin_user}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
