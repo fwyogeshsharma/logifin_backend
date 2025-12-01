@@ -20,7 +20,7 @@ services:
     networks:
       - logifin-network-prod
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-logifin_user} -d ${DB_NAME:-LogifinProd}"]
+      test: ["CMD-SHELL", "pg_isready -U faber -d Logifin"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -56,9 +56,9 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: LogifinProd
-      DB_USER: logifin_user
-      DB_PASSWORD: postgres
+      DB_NAME: Logifin
+      DB_USER: faber
+      DB_PASSWORD: faber
       JWT_SECRET: defaultSecretKeyThatShouldBeChangedInProduction123456789
       SERVER_PORT: 8080
       SHOW_SQL: "false"
@@ -76,7 +76,7 @@ services:
       # Swagger Configuration
       SWAGGER_ENABLED: "true"
     ports:
-      - "8081:8080"
+      - "5000:8080"
     networks:
       - logifin-network-prod
     depends_on:
