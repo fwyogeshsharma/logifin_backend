@@ -16,7 +16,7 @@ services:
       POSTGRES_USER: ${DB_USER:-logifin_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-6000}:5432"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     networks:
@@ -40,7 +40,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "${PGADMIN_PORT:-5050}:80"
+      - "${PGADMIN_PORT:-6002}:80"
     volumes:
       - pgadmin_data_prod:/var/lib/pgadmin
     networks:
@@ -82,7 +82,7 @@ services:
       # Swagger Configuration
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-8081}:8080"
     networks:
       - logifin-network-prod
     depends_on:
