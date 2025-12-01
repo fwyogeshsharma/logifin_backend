@@ -1,33 +1,36 @@
 version: '3.8'
 
+# Production Docker Compose
+# Usage: docker compose -f docker-compose.prod.yml up --build -d
+
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:14-alpine
-    container_name: logifin-postgres
-    restart: unless-stopped
+    container_name: logifin-postgres-prod
+    restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME:-LogifinLocal}
-      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_DB: ${DB_NAME:-LogifinProd}
+      POSTGRES_USER: ${DB_USER:-logifin_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     networks:
-      - logifin-network
+      - logifin-network-prod
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-LogifinLocal}"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-logifin_user} -d ${DB_NAME:-LogifinProd}"]
+      interval: 30s
+      timeout: 10s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
   # pgAdmin - PostgreSQL Admin UI
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: logifin-pgadmin
-    restart: unless-stopped
+    container_name: logifin-pgadmin-prod
+    restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@logifin.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
@@ -35,34 +38,31 @@ services:
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-      - ./pgadmin/pgpass:/pgadmin4/pgpass:ro
+      - pgadmin_data_prod:/var/lib/pgadmin
     networks:
-      - logifin-network
+      - logifin-network-prod
     depends_on:
       postgres:
         condition: service_healthy
-    user: root
-    entrypoint: /bin/sh -c "chmod 600 /pgadmin4/pgpass; /entrypoint.sh"
 
   # Spring Boot Backend Application
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: logifin-backend
-    restart: unless-stopped
+    container_name: logifin-backend-prod
+    restart: always
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-local}
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-LogifinLocal}
-      DB_USER: ${DB_USER:-postgres}
+      DB_NAME: ${DB_NAME:-LogifinProd}
+      DB_USER: ${DB_USER:-logifin_user}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-defaultSecretKeyThatShouldBeChangedInProduction123456789}
       SERVER_PORT: 8080
-      SHOW_SQL: ${SHOW_SQL:-false}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SHOW_SQL: "false"
+      LOG_LEVEL: WARN
       # Email Configuration
       EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
       EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -70,7 +70,7 @@ services:
       EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@logifin.com}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Logifin}
-      RESET_LINK_BASE_URL: ${RESET_LINK_BASE_URL:-http://localhost:3000}
+      RESET_LINK_BASE_URL: ${RESET_LINK_BASE_URL:-https://logifin.com}
       TOKEN_EXPIRATION_MINUTES: ${TOKEN_EXPIRATION_MINUTES:-30}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       # Swagger Configuration
@@ -78,23 +78,28 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:
-      - logifin-network
+      - logifin-network-prod
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
 networks:
-  logifin-network:
+  logifin-network-prod:
     driver: bridge
 
 volumes:
-  postgres_data:
+  postgres_data_prod:
     driver: local
-  pgadmin_data:
+  pgadmin_data_prod:
     driver: local
