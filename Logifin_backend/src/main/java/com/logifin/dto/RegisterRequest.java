@@ -31,5 +31,7 @@ public class RegisterRequest {
 
     private String phone;
 
-    private String roleName;
+    private Long roleId;
+
+    private Long companyId;
 }

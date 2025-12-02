@@ -1,6 +1,7 @@
 package com.logifin.controller;
 
 import com.logifin.dto.ApiResponse;
+import com.logifin.dto.PagedResponse;
 import com.logifin.dto.UserDTO;
 import com.logifin.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -235,5 +239,119 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id) {
         userService.activateUser(id);
         return ResponseEntity.ok(ApiResponse.success("User activated successfully", null));
+    }
+
+    // Paginated endpoints
+
+    @Operation(
+            summary = "Get All Users (Paginated)",
+            description = "Retrieve all users with pagination support. Requires CSR, ADMIN, or SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Users retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getAllUsersPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<UserDTO> users = userService.getAllUsers(pageable);
+        return ResponseEntity.ok(ApiResponse.success(users));
+    }
+
+    @Operation(
+            summary = "Get Active Users (Paginated)",
+            description = "Retrieve all active users with pagination support. Requires CSR, ADMIN, or SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Active users retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/active/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getActiveUsersPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<UserDTO> users = userService.getActiveUsers(pageable);
+        return ResponseEntity.ok(ApiResponse.success(users));
+    }
+
+    @Operation(
+            summary = "Get Inactive Users (Paginated)",
+            description = "Retrieve all inactive users with pagination support. Requires CSR, ADMIN, or SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Inactive users retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/inactive/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getInactiveUsersPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<UserDTO> users = userService.getInactiveUsers(pageable);
+        return ResponseEntity.ok(ApiResponse.success(users));
+    }
+
+    @Operation(
+            summary = "Search Users (Paginated)",
+            description = "Search users by keyword (first name, last name, or email) with pagination support. Requires CSR, ADMIN, or SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Search results",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/search/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> searchUsersPaged(
+            @Parameter(description = "Keyword to search for") @RequestParam String keyword,
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<UserDTO> users = userService.searchUsers(keyword, pageable);
+        return ResponseEntity.ok(ApiResponse.success(users));
+    }
+
+    @Operation(
+            summary = "Get Users by Role (Paginated)",
+            description = "Retrieve users by role name with pagination support. Requires CSR, ADMIN, or SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Users retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/role/{roleName}/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getUsersByRolePaged(
+            @Parameter(description = "Role name (e.g., ROLE_ADMIN)") @PathVariable String roleName,
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<UserDTO> users = userService.getUsersByRole(roleName, pageable);
+        return ResponseEntity.ok(ApiResponse.success(users));
     }
 }

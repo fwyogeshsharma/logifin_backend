@@ -1,6 +1,7 @@
 package com.logifin.controller;
 
 import com.logifin.dto.ApiResponse;
+import com.logifin.dto.PagedResponse;
 import com.logifin.dto.RoleDTO;
 import com.logifin.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,8 +26,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
-@Tag(name = "Role Management", description = "APIs for managing roles (SUPER_ADMIN only)")
+@Tag(name = "Role Management", description = "APIs for managing roles")
 @SecurityRequirement(name = "Bearer Authentication")
 public class RoleController {
 
@@ -52,6 +55,7 @@ public class RoleController {
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     })
     @PostMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<RoleDTO>> createRole(@Valid @RequestBody RoleDTO roleDTO) {
         RoleDTO createdRole = roleService.createRole(roleDTO);
         return ResponseEntity
@@ -103,7 +107,7 @@ public class RoleController {
 
     @Operation(
             summary = "Get All Roles",
-            description = "Retrieve all roles. Requires SUPER_ADMIN role."
+            description = "Retrieve all roles. Public endpoint - no authentication required."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -136,6 +140,7 @@ public class RoleController {
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<RoleDTO>> updateRole(
             @Parameter(description = "Role ID") @PathVariable Long id,
             @Valid @RequestBody RoleDTO roleDTO) {
@@ -155,12 +160,69 @@ public class RoleController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404",
                     description = "Role not found",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Access denied",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteRole(
             @Parameter(description = "Role ID") @PathVariable Long id) {
         roleService.deleteRole(id);
         return ResponseEntity.ok(ApiResponse.success("Role deleted successfully", null));
+    }
+
+    // Paginated endpoints
+
+    @Operation(
+            summary = "Get All Roles (Paginated)",
+            description = "Retrieve all roles with pagination support. Public endpoint - no authentication required."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Roles retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<PagedResponse<RoleDTO>>> getAllRolesPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<RoleDTO> roles = roleService.getAllRoles(pageable);
+        return ResponseEntity.ok(ApiResponse.success(roles));
+    }
+
+    @Operation(
+            summary = "Search Roles (Paginated)",
+            description = "Search roles by keyword (role name or description) with pagination support. Requires SUPER_ADMIN role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Search results",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Access denied",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @GetMapping("/search/paged")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<PagedResponse<RoleDTO>>> searchRolesPaged(
+            @Parameter(description = "Keyword to search for") @RequestParam String keyword,
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PagedResponse<RoleDTO> roles = roleService.searchRoles(keyword, pageable);
+        return ResponseEntity.ok(ApiResponse.success(roles));
     }
 }

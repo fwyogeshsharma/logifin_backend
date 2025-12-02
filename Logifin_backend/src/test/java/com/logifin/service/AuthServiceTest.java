@@ -226,15 +226,15 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should ignore roleName in register request")
-        void shouldIgnoreRoleNameInRegisterRequest() {
+        @DisplayName("Should register user with roleId in register request")
+        void shouldRegisterUserWithRoleId() {
             RegisterRequest registerRequest = RegisterRequest.builder()
                     .firstName("John")
                     .lastName("Doe")
                     .email("john.doe@test.com")
                     .password("password123")
                     .phone("1234567890")
-                    .roleName("ROLE_ADMIN")
+                    .roleId(1L)
                     .build();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
@@ -247,12 +247,12 @@ class AuthServiceTest {
 
             AuthResponse result = authService.register(registerRequest);
 
-            // Role should still be null even if roleName was provided
-            assertThat(result.getRole()).isNull();
+            assertThat(result).isNotNull();
+            assertThat(result.getAccessToken()).isEqualTo("jwt-token");
 
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(userCaptor.capture());
-            assertThat(userCaptor.getValue().getRole()).isNull();
+            assertThat(userCaptor.getValue().getFirstName()).isEqualTo("John");
         }
     }
 }

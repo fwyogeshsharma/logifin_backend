@@ -71,6 +71,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/actuator/**").permitAll()
                 // Swagger UI endpoints
                 .antMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                // Public Company endpoints (no auth required)
+                .antMatchers(HttpMethod.GET, "/api/v1/companies").permitAll()
+                .antMatchers(HttpMethod.GET, "/api/v1/companies/paged").permitAll()
+                .antMatchers(HttpMethod.GET, "/api/v1/companies/active").permitAll()
+                .antMatchers(HttpMethod.GET, "/api/v1/companies/active/paged").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/v1/companies").permitAll()
+                // Public Role endpoints (no auth required)
+                .antMatchers(HttpMethod.GET, "/api/v1/roles").permitAll()
+                .antMatchers(HttpMethod.GET, "/api/v1/roles/paged").permitAll()
                 // Role-based access for user management
                 .antMatchers(HttpMethod.GET, "/api/v1/users/**").hasAnyRole("CSR", "ADMIN", "SUPER_ADMIN")
                 .antMatchers(HttpMethod.POST, "/api/v1/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
@@ -79,8 +88,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.DELETE, "/api/v1/users/**").hasRole("SUPER_ADMIN")
                 // User role assignment - Admin and Super Admin only
                 .antMatchers(HttpMethod.POST, "/api/v1/user/set-role").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                // Role management - Super Admin only
+                // Role management (other than GET) - Super Admin only
                 .antMatchers("/api/v1/roles/**").hasRole("SUPER_ADMIN")
+                // Company management (other than public) - requires auth
+                .antMatchers("/api/v1/companies/**").authenticated()
+                // Company Admin management - requires auth
+                .antMatchers(HttpMethod.GET, "/api/v1/company/*/admin").authenticated()
+                .antMatchers(HttpMethod.GET, "/api/v1/company/*/admin/exists").authenticated()
+                .antMatchers(HttpMethod.POST, "/api/v1/company/update-admin").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                // Cache management - Super Admin only
+                .antMatchers("/api/v1/cache/**").hasRole("SUPER_ADMIN")
                 // All other endpoints require authentication
                 .anyRequest().authenticated();
 

@@ -27,7 +27,24 @@ spring:
         jdbc:
           lob:
             non_contextual_creation: true
+        # Hibernate L2 Cache - Disabled (using Spring Cache with Redis instead)
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
     open-in-view: false
+
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+        max-wait: -1
 
   flyway:
     enabled: true
@@ -84,6 +101,16 @@ springdoc:
     filter: true
     syntax-highlight:
       activated: true
+
+# Cache Configuration
+cache:
+  enabled: ${CACHE_ENABLED:true}
+  ttl:
+    default: 60      # Default TTL in minutes
+    users: 30        # User cache TTL
+    roles: 120       # Role cache TTL (reference data)
+    user-details: 15 # User details TTL (security sensitive)
+    search: 5        # Search results TTL
 
 logging:
   level:

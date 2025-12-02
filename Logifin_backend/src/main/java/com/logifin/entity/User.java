@@ -10,7 +10,8 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "users", indexes = {
     @Index(name = "idx_user_email", columnList = "email", unique = true),
-    @Index(name = "idx_users_role_id", columnList = "role_id")
+    @Index(name = "idx_users_role_id", columnList = "role_id"),
+    @Index(name = "idx_users_company_id", columnList = "company_id")
 })
 @Getter
 @Setter
@@ -47,4 +48,8 @@ public class User extends BaseEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 }

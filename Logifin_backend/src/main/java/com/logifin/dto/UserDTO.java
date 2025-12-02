@@ -36,6 +36,10 @@ public class UserDTO {
 
     private String roleName;
 
+    private Long companyId;
+
+    private String companyName;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

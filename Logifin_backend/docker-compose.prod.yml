@@ -26,6 +26,25 @@ services:
       retries: 5
       start_period: 30s
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: logifin-redis-prod
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "3800:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - logifin-network-prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
   # pgAdmin - PostgreSQL Admin UI
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -75,12 +94,18 @@ services:
       EMAIL_ENABLED: "true"
       # Swagger Configuration
       SWAGGER_ENABLED: "true"
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_ENABLED: "true"
     ports:
       - "5000:8080"
     networks:
       - logifin-network-prod
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
@@ -102,4 +127,6 @@ volumes:
   postgres_data_prod:
     driver: local
   pgadmin_data_prod:
+    driver: local
+  redis_data_prod:
     driver: local

@@ -2,6 +2,10 @@ package com.logifin.dto;
 
 import lombok.*;
 
+/**
+ * Response DTO for authentication operations (login/register).
+ * Contains user information and JWT token.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,6 +20,9 @@ public class AuthResponse {
     private String firstName;
     private String lastName;
     private String role;
+    private Long companyId;
+    private String companyName;
+    private Boolean isCompanyAdmin;
 
     public AuthResponse(String accessToken, Long userId, String email,
                        String firstName, String lastName, String role) {

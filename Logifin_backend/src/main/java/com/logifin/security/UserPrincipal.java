@@ -22,6 +22,8 @@ public class UserPrincipal implements UserDetails {
     private String email;
     private String password;
     private Boolean active;
+    private Long companyId;
+    private String companyName;
     private Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
@@ -40,6 +42,8 @@ public class UserPrincipal implements UserDetails {
                 .email(user.getEmail())
                 .password(user.getPassword())
                 .active(user.getActive())
+                .companyId(user.getCompany() != null ? user.getCompany().getId() : null)
+                .companyName(user.getCompany() != null ? user.getCompany().getName() : null)
                 .authorities(authorities)
                 .build();
     }

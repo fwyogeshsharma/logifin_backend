@@ -1,6 +1,8 @@
 package com.logifin.service;
 
+import com.logifin.dto.PagedResponse;
 import com.logifin.dto.UserDTO;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -25,4 +27,15 @@ public interface UserService {
     void deactivateUser(Long id);
 
     void activateUser(Long id);
+
+    // Paginated methods
+    PagedResponse<UserDTO> getAllUsers(Pageable pageable);
+
+    PagedResponse<UserDTO> getActiveUsers(Pageable pageable);
+
+    PagedResponse<UserDTO> getInactiveUsers(Pageable pageable);
+
+    PagedResponse<UserDTO> searchUsers(String keyword, Pageable pageable);
+
+    PagedResponse<UserDTO> getUsersByRole(String roleName, Pageable pageable);
 }

@@ -15,6 +15,7 @@ You are an expert **Full-Stack Developer** and **DevOps Engineer** with deep exp
 * pgAdmin for PostgreSQL management
 * JUnit 5 Testing
 * Swagger/OpenAPI Documentation
+* Redis Caching (API + Hibernate L2 Cache)
 
 Your job is to generate a **production-grade backend architecture** and **end-to-end Docker-based deployment system**.
 
@@ -52,6 +53,8 @@ No manual installations should ever be required on any machine.
 * pgAdmin UI support
 * JUnit 5 + Mockito for testing
 * Swagger/OpenAPI (springdoc-openapi)
+* Redis for caching
+* Spring Cache abstraction
 
 ---
 
@@ -114,11 +117,12 @@ Claude must generate:
 
 ### **docker-compose.yml**
 
-Includes 3 services:
+Includes 4 services:
 
 1. **Postgres**
-2. **pgAdmin**
-3. **Spring Boot backend**
+2. **Redis**
+3. **pgAdmin**
+4. **Spring Boot backend**
 
 ### **.env File**
 
@@ -229,7 +233,214 @@ Swagger endpoints must be publicly accessible:
 
 ---
 
-# ✔ **8. Testing Requirements**
+# ✔ **8. Redis Caching**
+
+## **Multi-Layer Caching System**
+
+The application uses Redis as the primary caching layer for improved API performance.
+
+### **Cache Dependencies**
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-cache</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.redisson</groupId>
+    <artifactId>redisson-hibernate-53</artifactId>
+    <version>3.17.7</version>
+</dependency>
+```
+
+### **Cache Names & TTL**
+| Cache Name | TTL | Description |
+|------------|-----|-------------|
+| `users` | 30 min | All users list |
+| `userById` | 30 min | User by ID |
+| `userByEmail` | 30 min | User by email |
+| `activeUsers` | 30 min | Active users list |
+| `userSearch` | 5 min | Search results |
+| `roles` | 120 min | All roles (reference data) |
+| `roleById` | 120 min | Role by ID |
+| `roleByName` | 120 min | Role by name |
+| `userDetails` | 15 min | Security user details |
+
+### **Service-Level Caching Annotations**
+```java
+// Cache results
+@Cacheable(value = "userById", key = "#id", unless = "#result == null")
+public UserDTO getUserById(Long id) { ... }
+
+// Evict on update
+@CacheEvict(value = "users", allEntries = true)
+public UserDTO createUser(UserDTO userDTO) { ... }
+
+// Multiple evictions
+@Caching(evict = {
+    @CacheEvict(value = "userById", key = "#id"),
+    @CacheEvict(value = "users", allEntries = true)
+})
+public UserDTO updateUser(Long id, UserDTO userDTO) { ... }
+```
+
+### **Note on Hibernate L2 Cache**
+Hibernate Second-Level Cache with Redisson has been disabled due to configuration complexity with Spring placeholder resolution in `redisson.yaml`. The application uses Spring Cache abstraction with Redis for service-level caching, which provides sufficient performance benefits.
+
+### **Cache Configuration**
+```yaml
+# application.yml
+spring:
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+
+cache:
+  enabled: ${CACHE_ENABLED:true}
+  ttl:
+    default: 60
+    users: 30
+    roles: 120
+```
+
+### **Cache Management API**
+SUPER_ADMIN role can manage caches via `/api/v1/cache/**`:
+* `GET /cache/names` - Get all cache names
+* `GET /cache/stats/{cacheName}` - Get cache statistics
+* `DELETE /cache/{cacheName}` - Clear specific cache
+* `DELETE /cache/clear-all` - Clear all caches
+* `POST /cache/warm-up` - Pre-populate caches
+
+### **Cache Invalidation Strategy**
+* **Create**: Evict list caches
+* **Update**: Evict specific entry + list caches
+* **Delete**: Evict all related caches
+* **Reference data**: Longer TTL, manual refresh
+
+### **Environment Variables**
+```
+REDIS_HOST=redis
+REDIS_PORT=6379
+CACHE_ENABLED=true
+```
+
+---
+
+# ✔ **9. Pagination Support**
+
+## **Paginated API Responses**
+
+All list endpoints support pagination for efficient data retrieval on large datasets.
+
+### **PagedResponse DTO**
+```java
+public class PagedResponse<T> {
+    private List<T> content;      // Page data
+    private int page;              // Current page (0-indexed)
+    private int size;              // Page size
+    private long totalElements;    // Total number of elements
+    private int totalPages;        // Total number of pages
+    private boolean first;         // Is first page
+    private boolean last;          // Is last page
+    private boolean empty;         // Is page empty
+}
+```
+
+### **Pagination Query Parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `page` | 0 | Page number (0-indexed) |
+| `size` | 10 | Number of items per page |
+| `sortBy` | createdAt | Field to sort by |
+| `sortDir` | desc | Sort direction (asc/desc) |
+
+### **User Paginated Endpoints**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/users/paged` | Get all users (paginated) |
+| `GET /api/v1/users/active/paged` | Get active users (paginated) |
+| `GET /api/v1/users/inactive/paged` | Get inactive users (paginated) |
+| `GET /api/v1/users/search/paged?keyword=...` | Search users (paginated) |
+| `GET /api/v1/users/role/{roleName}/paged` | Get users by role (paginated) |
+
+### **Role Paginated Endpoints**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/roles/paged` | Get all roles (paginated) |
+| `GET /api/v1/roles/search/paged?keyword=...` | Search roles (paginated) |
+
+### **Example Request**
+```
+GET /api/v1/users/paged?page=0&size=10&sortBy=createdAt&sortDir=desc
+```
+
+### **Example Response**
+```json
+{
+  "success": true,
+  "data": {
+    "content": [
+      { "id": 1, "firstName": "John", "lastName": "Doe", ... }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalElements": 100,
+    "totalPages": 10,
+    "first": true,
+    "last": false,
+    "empty": false
+  }
+}
+```
+
+### **Repository Methods**
+```java
+// Paginated queries in UserRepository
+Page<User> findByActiveTrue(Pageable pageable);
+Page<User> findByActiveFalse(Pageable pageable);
+Page<User> searchByKeyword(String keyword, Pageable pageable);
+Page<User> findByRole_RoleName(String roleName, Pageable pageable);
+
+// Paginated queries in RoleRepository
+Page<Role> searchByKeyword(String keyword, Pageable pageable);
+```
+
+### **Service Layer Pattern**
+```java
+@Override
+@Transactional(readOnly = true)
+public PagedResponse<UserDTO> getAllUsers(Pageable pageable) {
+    Page<User> userPage = userRepository.findAll(pageable);
+    List<UserDTO> userDTOs = userPage.getContent().stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    return PagedResponse.of(userPage, userDTOs);
+}
+```
+
+### **Controller Pattern**
+```java
+@GetMapping("/paged")
+public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getAllUsersPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "createdAt") String sortBy,
+        @RequestParam(defaultValue = "desc") String sortDir) {
+    Sort sort = sortDir.equalsIgnoreCase("asc")
+        ? Sort.by(sortBy).ascending()
+        : Sort.by(sortBy).descending();
+    Pageable pageable = PageRequest.of(page, size, sort);
+    PagedResponse<UserDTO> users = userService.getAllUsers(pageable);
+    return ResponseEntity.ok(ApiResponse.success(users));
+}
+```
+
+---
+
+# ✔ **10. Testing Requirements**
 
 ## **JUnit 5 Test Coverage**
 
@@ -258,7 +469,7 @@ All APIs must have comprehensive JUnit test coverage:
 
 ---
 
-# ✔ **9. Expected Output from Claude**
+# ✔ **11. Expected Output from Claude**
 
 Claude must produce:
 
@@ -292,6 +503,9 @@ Containing:
 * Spring Security Test
 * springdoc-openapi-ui (Swagger)
 * springdoc-openapi-security
+* spring-boot-starter-data-redis
+* spring-boot-starter-cache
+* redisson-hibernate-53
 
 ### **C. Spring Boot Code**
 
@@ -301,6 +515,7 @@ Containing:
 * Entities with JPA (User, Role)
 * Security configuration (JWT, filters, entry points)
 * Swagger configuration (SwaggerConfig.java)
+* Cache configuration (CacheConfig.java, RedisConfig.java)
 * Exception handling
 * DTOs (User, Role, Auth request/response)
 
@@ -314,6 +529,8 @@ Containing:
 * Database config
 * JWT config
 * Swagger config (springdoc settings)
+* Redis config
+* Cache TTL settings
 
 ### **E. Docker Files**
 
@@ -343,7 +560,7 @@ Explain:
 
 ---
 
-# ✔ **10. Coding & Architecture Standards**
+# ✔ **12. Coding & Architecture Standards**
 
 Follow:
 
