@@ -98,6 +98,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.POST, "/api/v1/company/update-admin").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 // Cache management - Super Admin only
                 .antMatchers("/api/v1/cache/**").hasRole("SUPER_ADMIN")
+                // Trip management - TRANSPORTER role for write operations
+                .antMatchers(HttpMethod.POST, "/api/v1/trip").hasRole("TRANSPORTER")
+                .antMatchers(HttpMethod.PUT, "/api/v1/trip/**").hasRole("TRANSPORTER")
+                .antMatchers(HttpMethod.DELETE, "/api/v1/trip/**").hasRole("TRANSPORTER")
+                .antMatchers(HttpMethod.POST, "/api/v1/trip/upload").hasRole("TRANSPORTER")
+                .antMatchers(HttpMethod.POST, "/api/v1/trip/*/document").hasRole("TRANSPORTER")
+                .antMatchers(HttpMethod.DELETE, "/api/v1/trip/document/**").hasRole("TRANSPORTER")
+                // Trip read operations - any authenticated user
+                .antMatchers(HttpMethod.GET, "/api/v1/trip/**").authenticated()
+                .antMatchers(HttpMethod.GET, "/api/v1/trips/**").authenticated()
                 // All other endpoints require authentication
                 .anyRequest().authenticated();
 
