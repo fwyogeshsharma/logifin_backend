@@ -67,7 +67,7 @@ class TripRepositoryTest {
                 .name("Test Company")
                 .email("company@test.com")
                 .phone("1234567890")
-                .active(true)
+                .isActive(true)
                 .build();
         testCompany = entityManager.persistAndFlush(testCompany);
 
