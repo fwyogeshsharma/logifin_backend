@@ -47,4 +47,19 @@ public interface DocumentTypeRepository extends JpaRepository<DocumentType, Long
      */
     @Query("SELECT dt FROM DocumentType dt ORDER BY dt.sortOrder ASC NULLS LAST, dt.displayName ASC")
     List<DocumentType> findAllOrdered();
+
+    /**
+     * Check if document type exists by code excluding a specific ID (for updates)
+     * @param code Document type code
+     * @param id ID to exclude
+     * @return true if exists
+     */
+    boolean existsByCodeAndIdNot(String code, Long id);
+
+    /**
+     * Count document types by active status
+     * @param isActive Active status
+     * @return Count
+     */
+    long countByIsActive(boolean isActive);
 }
