@@ -18,9 +18,6 @@ import java.time.LocalDate;
 @Schema(description = "Search criteria for filtering trips")
 public class TripSearchCriteria {
 
-    @Schema(description = "Search by E-way Bill Number (partial match)", example = "EWB123")
-    private String ewayBillNumber;
-
     @Schema(description = "Search by pickup location (partial match)", example = "Mumbai")
     private String pickup;
 

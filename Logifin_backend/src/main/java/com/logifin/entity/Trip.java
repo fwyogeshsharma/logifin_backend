@@ -5,17 +5,17 @@ import lombok.*;
 import javax.persistence.*;
 import javax.validation.constraints.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Entity representing a Trip in the logistics system.
- * Contains e-way bill information, route details, financial terms, and cargo specifications.
+ * Contains route details, financial terms, and cargo specifications.
+ * Documents (EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, FINAL_INVOICE) are stored in trip_documents table.
+ * E-way Bill Number is stored in trip_documents with document_type = EWAY_BILL.
  */
 @Entity
 @Table(name = "trips", indexes = {
-    @Index(name = "idx_trip_eway_bill_number", columnList = "eway_bill_number"),
     @Index(name = "idx_trip_transporter", columnList = "transporter"),
     @Index(name = "idx_trip_created_at", columnList = "created_at"),
     @Index(name = "idx_trip_pickup", columnList = "pickup"),
@@ -28,18 +28,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Trip extends BaseEntity {
-
-    @NotBlank(message = "E-way Bill Number is required")
-    @Size(max = 50, message = "E-way Bill Number must not exceed 50 characters")
-    @Column(name = "eway_bill_number", nullable = false, unique = true, length = 50)
-    private String ewayBillNumber;
-
-    @Lob
-    @Column(name = "eway_bill_image", columnDefinition = "BYTEA")
-    private byte[] ewayBillImage;
-
-    @Column(name = "eway_bill_image_content_type", length = 100)
-    private String ewayBillImageContentType;
 
     @NotBlank(message = "Pickup location is required")
     @Size(max = 255, message = "Pickup location must not exceed 255 characters")
@@ -118,6 +106,10 @@ public class Trip extends BaseEntity {
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<TripBid> bids = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TripDocument> documents = new ArrayList<>();
 
     /**
      * Trip status enumeration

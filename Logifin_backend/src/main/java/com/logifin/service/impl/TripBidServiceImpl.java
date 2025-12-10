@@ -581,7 +581,6 @@ public class TripBidServiceImpl implements TripBidService {
                 .id(bid.getId())
                 // Trip info
                 .tripId(bid.getTrip().getId())
-                .tripEwayBillNumber(bid.getTrip().getEwayBillNumber())
                 .tripPickup(bid.getTrip().getPickup())
                 .tripDestination(bid.getTrip().getDestination())
                 .tripLoanAmount(bid.getTrip().getLoanAmount())

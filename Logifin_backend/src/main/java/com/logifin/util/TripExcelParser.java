@@ -25,19 +25,18 @@ import java.util.List;
 @Slf4j
 public class TripExcelParser {
 
-    private static final int EWAY_BILL_NUMBER_COL = 0;
-    private static final int PICKUP_COL = 1;
-    private static final int DESTINATION_COL = 2;
-    private static final int SENDER_COL = 3;
-    private static final int RECEIVER_COL = 4;
-    private static final int TRANSPORTER_COL = 5;
-    private static final int LOAN_AMOUNT_COL = 6;
-    private static final int INTEREST_RATE_COL = 7;
-    private static final int MATURITY_DAYS_COL = 8;
-    private static final int DISTANCE_KM_COL = 9;
-    private static final int LOAD_TYPE_COL = 10;
-    private static final int WEIGHT_KG_COL = 11;
-    private static final int NOTES_COL = 12;
+    private static final int PICKUP_COL = 0;
+    private static final int DESTINATION_COL = 1;
+    private static final int SENDER_COL = 2;
+    private static final int RECEIVER_COL = 3;
+    private static final int TRANSPORTER_COL = 4;
+    private static final int LOAN_AMOUNT_COL = 5;
+    private static final int INTEREST_RATE_COL = 6;
+    private static final int MATURITY_DAYS_COL = 7;
+    private static final int DISTANCE_KM_COL = 8;
+    private static final int LOAD_TYPE_COL = 9;
+    private static final int WEIGHT_KG_COL = 10;
+    private static final int NOTES_COL = 11;
 
     /**
      * Parse CSV file and return list of TripRequestDTO
@@ -132,11 +131,6 @@ public class TripExcelParser {
         List<String> errors = new ArrayList<>();
 
         // Validate required fields
-        String ewayBillNumber = getValueOrEmpty(values, EWAY_BILL_NUMBER_COL);
-        if (!StringUtils.hasText(ewayBillNumber)) {
-            errors.add("E-way Bill Number is required");
-        }
-
         String pickup = getValueOrEmpty(values, PICKUP_COL);
         if (!StringUtils.hasText(pickup)) {
             errors.add("Pickup location is required");
@@ -184,11 +178,14 @@ public class TripExcelParser {
         BigDecimal weightKg = parseDecimalOptional(getValueOrEmpty(values, WEIGHT_KG_COL));
         String notes = getValueOrEmpty(values, NOTES_COL);
 
+        // Create row identifier for error tracking
+        String rowIdentifier = transporter + " - " + pickup;
+
         // If there are validation errors, add to response and return null
         if (!errors.isEmpty()) {
             ErrorRowDTO errorRow = ErrorRowDTO.builder()
                     .rowNumber(rowNumber)
-                    .ewayBillNumber(ewayBillNumber)
+                    .rowIdentifier(rowIdentifier)
                     .errorType(ErrorRowDTO.ErrorType.VALIDATION_ERROR)
                     .errors(errors)
                     .build();
@@ -197,7 +194,6 @@ public class TripExcelParser {
         }
 
         return TripRequestDTO.builder()
-                .ewayBillNumber(ewayBillNumber)
                 .pickup(pickup)
                 .destination(destination)
                 .sender(sender)
@@ -220,11 +216,6 @@ public class TripExcelParser {
         List<String> errors = new ArrayList<>();
 
         // Validate required fields
-        String ewayBillNumber = getCellStringValue(row.getCell(EWAY_BILL_NUMBER_COL));
-        if (!StringUtils.hasText(ewayBillNumber)) {
-            errors.add("E-way Bill Number is required");
-        }
-
         String pickup = getCellStringValue(row.getCell(PICKUP_COL));
         if (!StringUtils.hasText(pickup)) {
             errors.add("Pickup location is required");
@@ -272,11 +263,14 @@ public class TripExcelParser {
         BigDecimal weightKg = getCellDecimalValueOptional(row.getCell(WEIGHT_KG_COL));
         String notes = getCellStringValue(row.getCell(NOTES_COL));
 
+        // Create row identifier for error tracking
+        String rowIdentifier = transporter + " - " + pickup;
+
         // If there are validation errors, add to response and return null
         if (!errors.isEmpty()) {
             ErrorRowDTO errorRow = ErrorRowDTO.builder()
                     .rowNumber(rowNumber)
-                    .ewayBillNumber(ewayBillNumber)
+                    .rowIdentifier(rowIdentifier)
                     .errorType(ErrorRowDTO.ErrorType.VALIDATION_ERROR)
                     .errors(errors)
                     .build();
@@ -285,7 +279,6 @@ public class TripExcelParser {
         }
 
         return TripRequestDTO.builder()
-                .ewayBillNumber(ewayBillNumber)
                 .pickup(pickup)
                 .destination(destination)
                 .sender(sender)

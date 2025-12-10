@@ -74,4 +74,12 @@ public interface TripDocumentRepository extends JpaRepository<TripDocument, Long
     @Query("DELETE FROM TripDocument td WHERE td.trip.id = :tripId AND td.documentType.code = :documentTypeCode")
     void deleteByTripIdAndDocumentTypeCode(@Param("tripId") Long tripId,
                                             @Param("documentTypeCode") String documentTypeCode);
+
+    /**
+     * Delete documents by trip ID and document type ID
+     */
+    @Modifying
+    @Query("DELETE FROM TripDocument td WHERE td.trip.id = :tripId AND td.documentType.id = :documentTypeId")
+    void deleteByTripIdAndDocumentTypeId(@Param("tripId") Long tripId,
+                                          @Param("documentTypeId") Long documentTypeId);
 }

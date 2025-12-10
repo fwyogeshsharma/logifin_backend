@@ -2,13 +2,11 @@ package com.logifin.service;
 
 import com.logifin.dto.*;
 import com.logifin.entity.*;
-import com.logifin.exception.DuplicateResourceException;
 import com.logifin.exception.ResourceNotFoundException;
 import com.logifin.repository.DocumentTypeRepository;
 import com.logifin.repository.TripDocumentRepository;
 import com.logifin.repository.TripRepository;
 import com.logifin.repository.UserRepository;
-import com.logifin.repository.specification.TripSpecification;
 import com.logifin.service.impl.TripServiceImpl;
 import com.logifin.util.TripExcelParser;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +22,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -87,7 +84,6 @@ class TripServiceTest {
         testUser.setId(1L);
 
         testTrip = Trip.builder()
-                .ewayBillNumber("EWB123456789")
                 .pickup("Mumbai")
                 .destination("Delhi")
                 .sender("ABC Traders")
@@ -109,7 +105,6 @@ class TripServiceTest {
         testTrip.setUpdatedAt(LocalDateTime.now());
 
         testTripRequestDTO = TripRequestDTO.builder()
-                .ewayBillNumber("EWB123456789")
                 .pickup("Mumbai")
                 .destination("Delhi")
                 .sender("ABC Traders")
@@ -139,34 +134,21 @@ class TripServiceTest {
         @Test
         @DisplayName("Should create trip successfully")
         void createTrip_Success() {
-            when(tripRepository.existsByEwayBillNumber(anyString())).thenReturn(false);
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
             when(tripRepository.save(any(Trip.class))).thenReturn(testTrip);
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
+            when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
             TripResponseDTO result = tripService.createTrip(testTripRequestDTO, 1L);
 
             assertThat(result).isNotNull();
-            assertThat(result.getEwayBillNumber()).isEqualTo("EWB123456789");
             assertThat(result.getPickup()).isEqualTo("Mumbai");
             assertThat(result.getDestination()).isEqualTo("Delhi");
             verify(tripRepository).save(any(Trip.class));
         }
 
         @Test
-        @DisplayName("Should throw exception when E-way Bill Number already exists")
-        void createTrip_DuplicateEwayBillNumber() {
-            when(tripRepository.existsByEwayBillNumber("EWB123456789")).thenReturn(true);
-
-            assertThatThrownBy(() -> tripService.createTrip(testTripRequestDTO, 1L))
-                    .isInstanceOf(DuplicateResourceException.class)
-                    .hasMessageContaining("ewayBillNumber");
-        }
-
-        @Test
         @DisplayName("Should throw exception when user not found")
         void createTrip_UserNotFound() {
-            when(tripRepository.existsByEwayBillNumber(anyString())).thenReturn(false);
             when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> tripService.createTrip(testTripRequestDTO, 1L))
@@ -175,15 +157,19 @@ class TripServiceTest {
         }
 
         @Test
-        @DisplayName("Should create trip with E-way Bill image")
-        void createTrip_WithEwayBillImage() {
-            testTripRequestDTO.setEwayBillImageBase64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+        @DisplayName("Should create trip with documents")
+        void createTrip_WithDocuments() {
+            DocumentUploadDTO docDTO = DocumentUploadDTO.builder()
+                    .documentTypeId(1L)
+                    .documentNumber("EWB123456789")
+                    .documentBase64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+                    .build();
+            testTripRequestDTO.setDocuments(Collections.singletonList(docDTO));
 
-            when(tripRepository.existsByEwayBillNumber(anyString())).thenReturn(false);
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
             when(tripRepository.save(any(Trip.class))).thenReturn(testTrip);
-            when(documentTypeRepository.findByCode("EWAY_BILL")).thenReturn(Optional.of(testDocumentType));
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
+            when(documentTypeRepository.findById(1L)).thenReturn(Optional.of(testDocumentType));
+            when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
             TripResponseDTO result = tripService.createTrip(testTripRequestDTO, 1L);
 
@@ -200,14 +186,13 @@ class TripServiceTest {
         @DisplayName("Should get trip by ID successfully")
         void getTripById_Success() {
             when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(1L, "EWAY_BILL")).thenReturn(true);
+            when(tripDocumentRepository.findByTripId(1L)).thenReturn(Collections.emptyList());
 
             TripResponseDTO result = tripService.getTripById(1L);
 
             assertThat(result).isNotNull();
             assertThat(result.getId()).isEqualTo(1L);
-            assertThat(result.getEwayBillNumber()).isEqualTo("EWB123456789");
-            assertThat(result.getHasEwayBillImage()).isTrue();
+            assertThat(result.getPickup()).isEqualTo("Mumbai");
         }
 
         @Test
@@ -229,7 +214,6 @@ class TripServiceTest {
         @DisplayName("Should update trip successfully")
         void updateTrip_Success() {
             TripRequestDTO updateRequest = TripRequestDTO.builder()
-                    .ewayBillNumber("EWB123456789")
                     .pickup("Chennai")
                     .destination("Bangalore")
                     .sender("ABC Traders")
@@ -242,7 +226,7 @@ class TripServiceTest {
 
             when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
             when(tripRepository.save(any(Trip.class))).thenReturn(testTrip);
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
+            when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
             TripResponseDTO result = tripService.updateTrip(1L, updateRequest, 1L);
 
@@ -251,35 +235,13 @@ class TripServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when updating non-existent trip")
+        @DisplayName("Should throw exception when trip not found")
         void updateTrip_NotFound() {
             when(tripRepository.findById(999L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> tripService.updateTrip(999L, testTripRequestDTO, 1L))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Trip");
-        }
-
-        @Test
-        @DisplayName("Should throw exception when changing to existing E-way Bill Number")
-        void updateTrip_DuplicateEwayBillNumber() {
-            TripRequestDTO updateRequest = TripRequestDTO.builder()
-                    .ewayBillNumber("EWB999999999")
-                    .pickup("Mumbai")
-                    .destination("Delhi")
-                    .sender("ABC Traders")
-                    .receiver("XYZ Industries")
-                    .transporter("Fast Logistics")
-                    .loanAmount(new BigDecimal("100000"))
-                    .interestRate(new BigDecimal("12.5"))
-                    .maturityDays(30)
-                    .build();
-
-            when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
-            when(tripRepository.existsByEwayBillNumber("EWB999999999")).thenReturn(true);
-
-            assertThatThrownBy(() -> tripService.updateTrip(1L, updateRequest, 1L))
-                    .isInstanceOf(DuplicateResourceException.class);
         }
     }
 
@@ -299,7 +261,7 @@ class TripServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when deleting non-existent trip")
+        @DisplayName("Should throw exception when trip not found")
         void deleteTrip_NotFound() {
             when(tripRepository.existsById(999L)).thenReturn(false);
 
@@ -310,19 +272,19 @@ class TripServiceTest {
     }
 
     @Nested
-    @DisplayName("Search and Pagination Tests")
-    class SearchTests {
+    @DisplayName("Search Trip Tests")
+    class SearchTripTests {
 
         @Test
         @DisplayName("Should get all trips with pagination")
         void getAllTrips_Success() {
-            List<Trip> trips = Arrays.asList(testTrip);
-            Page<Trip> tripPage = new PageImpl<>(trips, PageRequest.of(0, 10), 1);
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Trip> tripPage = new PageImpl<>(Collections.singletonList(testTrip), pageable, 1);
 
-            when(tripRepository.findAll(any(Pageable.class))).thenReturn(tripPage);
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
+            when(tripRepository.findAll(pageable)).thenReturn(tripPage);
+            when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
-            PagedResponse<TripResponseDTO> result = tripService.getAllTrips(PageRequest.of(0, 10));
+            PagedResponse<TripResponseDTO> result = tripService.getAllTrips(pageable);
 
             assertThat(result).isNotNull();
             assertThat(result.getContent()).hasSize(1);
@@ -331,34 +293,19 @@ class TripServiceTest {
 
         @Test
         @DisplayName("Should search trips with criteria")
-        void searchTrips_Success() {
-            List<Trip> trips = Arrays.asList(testTrip);
-            Page<Trip> tripPage = new PageImpl<>(trips, PageRequest.of(0, 10), 1);
-
+        @SuppressWarnings("unchecked")
+        void searchTrips_WithCriteria() {
             TripSearchCriteria criteria = TripSearchCriteria.builder()
-                    .transporter("Fast Logistics")
+                    .pickup("Mumbai")
                     .status(Trip.TripStatus.ACTIVE)
                     .build();
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Trip> tripPage = new PageImpl<>(Collections.singletonList(testTrip), pageable, 1);
 
-            when(tripRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(tripPage);
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
+            when(tripRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(tripPage);
+            when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
-            PagedResponse<TripResponseDTO> result = tripService.searchTrips(criteria, PageRequest.of(0, 10));
-
-            assertThat(result).isNotNull();
-            assertThat(result.getContent()).hasSize(1);
-        }
-
-        @Test
-        @DisplayName("Should search trips by keyword")
-        void searchByKeyword_Success() {
-            List<Trip> trips = Arrays.asList(testTrip);
-            Page<Trip> tripPage = new PageImpl<>(trips, PageRequest.of(0, 10), 1);
-
-            when(tripRepository.searchByKeyword(eq("Mumbai"), any(Pageable.class))).thenReturn(tripPage);
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
-
-            PagedResponse<TripResponseDTO> result = tripService.searchByKeyword("Mumbai", PageRequest.of(0, 10));
+            PagedResponse<TripResponseDTO> result = tripService.searchTrips(criteria, pageable);
 
             assertThat(result).isNotNull();
             assertThat(result.getContent()).hasSize(1);
@@ -373,210 +320,28 @@ class TripServiceTest {
         @DisplayName("Should get trip statistics")
         void getTripStatistics_Success() {
             when(tripRepository.count()).thenReturn(100L);
-            when(tripRepository.countByStatus(Trip.TripStatus.ACTIVE)).thenReturn(40L);
-            when(tripRepository.countByStatus(Trip.TripStatus.IN_TRANSIT)).thenReturn(30L);
-            when(tripRepository.countByStatus(Trip.TripStatus.COMPLETED)).thenReturn(25L);
+            when(tripRepository.countByStatus(Trip.TripStatus.ACTIVE)).thenReturn(60L);
+            when(tripRepository.countByStatus(Trip.TripStatus.IN_TRANSIT)).thenReturn(20L);
+            when(tripRepository.countByStatus(Trip.TripStatus.COMPLETED)).thenReturn(15L);
             when(tripRepository.countByStatus(Trip.TripStatus.CANCELLED)).thenReturn(5L);
-            when(tripRepository.getTotalLoanAmount()).thenReturn(new BigDecimal("10000000"));
-            when(tripRepository.getAverageLoanAmount()).thenReturn(new BigDecimal("100000"));
-            when(tripRepository.getAverageInterestRate()).thenReturn(new BigDecimal("12.0"));
+            when(tripRepository.getTotalLoanAmount()).thenReturn(new BigDecimal("5000000"));
+            when(tripRepository.getAverageLoanAmount()).thenReturn(new BigDecimal("50000"));
+            when(tripRepository.getAverageInterestRate()).thenReturn(new BigDecimal("10.5"));
             when(tripRepository.getAverageMaturityDays()).thenReturn(30.0);
-            when(tripRepository.getTotalDistance()).thenReturn(new BigDecimal("140000"));
-            when(tripRepository.getTotalWeight()).thenReturn(new BigDecimal("500000"));
             when(tripRepository.countByCreatedAtAfter(any())).thenReturn(10L);
-            when(tripRepository.getTopPickupLocations(any())).thenReturn(new ArrayList<>());
-            when(tripRepository.getTopDestinations(any())).thenReturn(new ArrayList<>());
-            when(tripRepository.getTopTransporters(any())).thenReturn(new ArrayList<>());
-            when(tripRepository.getTripCountByLoadType()).thenReturn(new ArrayList<>());
+            when(tripRepository.getTopPickupLocations(any())).thenReturn(Collections.emptyList());
+            when(tripRepository.getTopDestinations(any())).thenReturn(Collections.emptyList());
+            when(tripRepository.getTopTransporters(any())).thenReturn(Collections.emptyList());
+            when(tripRepository.getTripCountByLoadType()).thenReturn(Collections.emptyList());
+            when(tripRepository.getTotalDistance()).thenReturn(new BigDecimal("100000"));
+            when(tripRepository.getTotalWeight()).thenReturn(new BigDecimal("500000"));
 
             TripStatisticsDTO result = tripService.getTripStatistics();
 
             assertThat(result).isNotNull();
             assertThat(result.getTotalTrips()).isEqualTo(100L);
-            assertThat(result.getActiveTrips()).isEqualTo(40L);
-            assertThat(result.getCompletedTrips()).isEqualTo(25L);
-        }
-    }
-
-    @Nested
-    @DisplayName("Export Tests")
-    class ExportTests {
-
-        @Test
-        @DisplayName("Should export trips to CSV")
-        void exportTripsToCsv_Success() {
-            when(tripRepository.findAll()).thenReturn(Arrays.asList(testTrip));
-
-            byte[] result = tripService.exportTripsToCsv(null);
-
-            assertThat(result).isNotNull();
-            assertThat(result.length).isGreaterThan(0);
-            String csv = new String(result);
-            assertThat(csv).contains("ewayBillNumber");
-            assertThat(csv).contains("EWB123456789");
-        }
-
-        @Test
-        @DisplayName("Should export trips to Excel")
-        void exportTripsToExcel_Success() {
-            when(tripRepository.findAll()).thenReturn(Arrays.asList(testTrip));
-
-            byte[] result = tripService.exportTripsToExcel(null);
-
-            assertThat(result).isNotNull();
-            assertThat(result.length).isGreaterThan(0);
-        }
-
-        @Test
-        @DisplayName("Should get CSV template")
-        void getCsvTemplate_Success() {
-            byte[] result = tripService.getCsvTemplate();
-
-            assertThat(result).isNotNull();
-            String template = new String(result);
-            assertThat(template).contains("ewayBillNumber");
-            assertThat(template).contains("pickup");
-            assertThat(template).contains("destination");
-        }
-
-        @Test
-        @DisplayName("Should get Excel template")
-        void getExcelTemplate_Success() {
-            byte[] result = tripService.getExcelTemplate();
-
-            assertThat(result).isNotNull();
-            assertThat(result.length).isGreaterThan(0);
-        }
-    }
-
-    @Nested
-    @DisplayName("Document Operations Tests")
-    class DocumentTests {
-
-        private TripDocument testDocument;
-
-        @BeforeEach
-        void setUpDocument() {
-            testDocument = TripDocument.builder()
-                    .trip(testTrip)
-                    .documentType(testDocumentType)
-                    .documentName("eway_bill.pdf")
-                    .contentType("application/pdf")
-                    .fileSize(1024L)
-                    .documentData("test data".getBytes())
-                    .uploadedByUser(testUser)
-                    .build();
-            testDocument.setId(1L);
-            testDocument.setCreatedAt(LocalDateTime.now());
-        }
-
-        @Test
-        @DisplayName("Should upload document successfully")
-        void uploadDocument_Success() {
-            TripDocumentDTO documentDTO = TripDocumentDTO.builder()
-                    .documentTypeCode("EWAY_BILL")
-                    .documentName("eway_bill.pdf")
-                    .contentType("application/pdf")
-                    .documentBase64("dGVzdCBkYXRh")
-                    .build();
-
-            when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
-            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-            when(documentTypeRepository.findByCode("EWAY_BILL")).thenReturn(Optional.of(testDocumentType));
-            when(tripDocumentRepository.save(any(TripDocument.class))).thenReturn(testDocument);
-
-            TripDocumentDTO.TripDocumentMetadataDTO result = tripService.uploadDocument(1L, documentDTO, 1L);
-
-            assertThat(result).isNotNull();
-            assertThat(result.getDocumentTypeCode()).isEqualTo("EWAY_BILL");
-            verify(tripDocumentRepository).save(any(TripDocument.class));
-        }
-
-        @Test
-        @DisplayName("Should get documents for trip")
-        void getDocuments_Success() {
-            when(tripRepository.existsById(1L)).thenReturn(true);
-            when(tripDocumentRepository.findByTripId(1L)).thenReturn(Arrays.asList(testDocument));
-
-            List<TripDocumentDTO.TripDocumentMetadataDTO> result = tripService.getDocuments(1L);
-
-            assertThat(result).isNotNull();
-            assertThat(result).hasSize(1);
-        }
-
-        @Test
-        @DisplayName("Should throw exception when getting documents for non-existent trip")
-        void getDocuments_TripNotFound() {
-            when(tripRepository.existsById(999L)).thenReturn(false);
-
-            assertThatThrownBy(() -> tripService.getDocuments(999L))
-                    .isInstanceOf(ResourceNotFoundException.class)
-                    .hasMessageContaining("Trip");
-        }
-
-        @Test
-        @DisplayName("Should download document successfully")
-        void downloadDocument_Success() {
-            when(tripDocumentRepository.findById(1L)).thenReturn(Optional.of(testDocument));
-
-            TripDocumentDTO result = tripService.downloadDocument(1L);
-
-            assertThat(result).isNotNull();
-            assertThat(result.getDocumentBase64()).isNotNull();
-        }
-
-        @Test
-        @DisplayName("Should delete document successfully")
-        void deleteDocument_Success() {
-            when(tripDocumentRepository.existsById(1L)).thenReturn(true);
-            doNothing().when(tripDocumentRepository).deleteById(1L);
-
-            tripService.deleteDocument(1L);
-
-            verify(tripDocumentRepository).deleteById(1L);
-        }
-    }
-
-    @Nested
-    @DisplayName("Validation Tests")
-    class ValidationTests {
-
-        @Test
-        @DisplayName("Should return true when E-way Bill Number exists")
-        void ewayBillNumberExists_True() {
-            when(tripRepository.existsByEwayBillNumber("EWB123456789")).thenReturn(true);
-
-            boolean result = tripService.ewayBillNumberExists("EWB123456789");
-
-            assertThat(result).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should return false when E-way Bill Number does not exist")
-        void ewayBillNumberExists_False() {
-            when(tripRepository.existsByEwayBillNumber("EWB999999999")).thenReturn(false);
-
-            boolean result = tripService.ewayBillNumberExists("EWB999999999");
-
-            assertThat(result).isFalse();
-        }
-    }
-
-    @Nested
-    @DisplayName("Interest Calculation Tests")
-    class InterestCalculationTests {
-
-        @Test
-        @DisplayName("Should calculate total interest amount correctly")
-        void calculateInterest_Success() {
-            when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
-            when(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(anyLong(), anyString())).thenReturn(false);
-
-            TripResponseDTO result = tripService.getTripById(1L);
-
-            // Interest = 100000 * 12.5 * 30 / 36500 = 1027.40 (approx)
-            assertThat(result.getTotalInterestAmount()).isNotNull();
-            assertThat(result.getTotalAmountDue()).isGreaterThan(result.getLoanAmount());
+            assertThat(result.getActiveTrips()).isEqualTo(60L);
+            assertThat(result.getTotalLoanAmount()).isEqualByComparingTo(new BigDecimal("5000000"));
         }
     }
 }

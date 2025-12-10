@@ -21,16 +21,6 @@ import java.util.Optional;
 public interface TripRepository extends JpaRepository<Trip, Long>, JpaSpecificationExecutor<Trip> {
 
     /**
-     * Find trip by E-way Bill Number
-     */
-    Optional<Trip> findByEwayBillNumber(String ewayBillNumber);
-
-    /**
-     * Check if E-way Bill Number exists
-     */
-    boolean existsByEwayBillNumber(String ewayBillNumber);
-
-    /**
      * Find trips by transporter name
      */
     Page<Trip> findByTransporterContainingIgnoreCase(String transporter, Pageable pageable);
@@ -54,7 +44,6 @@ public interface TripRepository extends JpaRepository<Trip, Long>, JpaSpecificat
      * Search trips by keyword across multiple fields
      */
     @Query("SELECT t FROM Trip t WHERE " +
-           "LOWER(t.ewayBillNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(t.pickup) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(t.destination) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(t.sender) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -156,12 +145,6 @@ public interface TripRepository extends JpaRepository<Trip, Long>, JpaSpecificat
      */
     @Query("SELECT t.loadType, COUNT(t) FROM Trip t WHERE t.loadType IS NOT NULL GROUP BY t.loadType ORDER BY COUNT(t) DESC")
     List<Object[]> getTripCountByLoadType();
-
-    /**
-     * Check if E-way Bill Numbers exist (for bulk validation)
-     */
-    @Query("SELECT t.ewayBillNumber FROM Trip t WHERE t.ewayBillNumber IN :ewayBillNumbers")
-    List<String> findExistingEwayBillNumbers(@Param("ewayBillNumbers") List<String> ewayBillNumbers);
 
     /**
      * Find all trips for export

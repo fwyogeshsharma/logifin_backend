@@ -152,13 +152,4 @@ public interface TripService {
      * @param documentId Document ID
      */
     void deleteDocument(Long documentId);
-
-    // ==================== Validation ====================
-
-    /**
-     * Check if E-way Bill Number exists
-     * @param ewayBillNumber E-way Bill Number to check
-     * @return true if exists, false otherwise
-     */
-    boolean ewayBillNumberExists(String ewayBillNumber);
 }

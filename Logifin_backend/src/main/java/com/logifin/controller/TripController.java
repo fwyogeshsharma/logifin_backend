@@ -186,7 +186,6 @@ public class TripController {
     })
     @GetMapping("/trips")
     public ResponseEntity<ApiResponse<PagedResponse<TripResponseDTO>>> getAllTrips(
-            @Parameter(description = "E-way Bill Number filter") @RequestParam(required = false) String ewayBillNumber,
             @Parameter(description = "Pickup location filter") @RequestParam(required = false) String pickup,
             @Parameter(description = "Destination filter") @RequestParam(required = false) String destination,
             @Parameter(description = "Sender name filter") @RequestParam(required = false) String sender,
@@ -204,7 +203,6 @@ public class TripController {
 
         // Build search criteria
         TripSearchCriteria criteria = TripSearchCriteria.builder()
-                .ewayBillNumber(ewayBillNumber)
                 .pickup(pickup)
                 .destination(destination)
                 .sender(sender)
@@ -270,13 +268,12 @@ public class TripController {
     )
     @GetMapping("/trips/export/csv")
     public ResponseEntity<byte[]> exportTripsToCsv(
-            @Parameter(description = "E-way Bill Number filter") @RequestParam(required = false) String ewayBillNumber,
             @Parameter(description = "Transporter filter") @RequestParam(required = false) String transporter,
             @Parameter(description = "Status filter") @RequestParam(required = false) String status,
             @Parameter(description = "Start date (yyyy-MM-dd)") @RequestParam(required = false) String createdFrom,
             @Parameter(description = "End date (yyyy-MM-dd)") @RequestParam(required = false) String createdTo) {
 
-        TripSearchCriteria criteria = buildExportCriteria(ewayBillNumber, transporter, status, createdFrom, createdTo);
+        TripSearchCriteria criteria = buildExportCriteria(transporter, status, createdFrom, createdTo);
         byte[] content = tripService.exportTripsToCsv(criteria);
 
         String filename = "trips_export_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
@@ -292,13 +289,12 @@ public class TripController {
     )
     @GetMapping("/trips/export/excel")
     public ResponseEntity<byte[]> exportTripsToExcel(
-            @Parameter(description = "E-way Bill Number filter") @RequestParam(required = false) String ewayBillNumber,
             @Parameter(description = "Transporter filter") @RequestParam(required = false) String transporter,
             @Parameter(description = "Status filter") @RequestParam(required = false) String status,
             @Parameter(description = "Start date (yyyy-MM-dd)") @RequestParam(required = false) String createdFrom,
             @Parameter(description = "End date (yyyy-MM-dd)") @RequestParam(required = false) String createdTo) {
 
-        TripSearchCriteria criteria = buildExportCriteria(ewayBillNumber, transporter, status, createdFrom, createdTo);
+        TripSearchCriteria criteria = buildExportCriteria(transporter, status, createdFrom, createdTo);
         byte[] content = tripService.exportTripsToExcel(criteria);
 
         String filename = "trips_export_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
@@ -363,7 +359,10 @@ public class TripController {
         }
 
         byte[] data = java.util.Base64.getDecoder().decode(document.getDocumentBase64());
-        String filename = document.getDocumentName() != null ? document.getDocumentName() : "document";
+        String filename = document.getDocumentTypeCode() != null ? document.getDocumentTypeCode() : "document";
+        if (document.getDocumentNumber() != null) {
+            filename = filename + "_" + document.getDocumentNumber();
+        }
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
@@ -383,25 +382,11 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.success("Document deleted successfully", null));
     }
 
-    // ==================== Validation Endpoints ====================
-
-    @Operation(
-            summary = "Check E-way Bill Number Exists",
-            description = "Check if an E-way Bill Number already exists. Available to any authenticated user."
-    )
-    @GetMapping("/trip/check-eway-bill/{ewayBillNumber}")
-    public ResponseEntity<ApiResponse<Boolean>> checkEwayBillExists(
-            @Parameter(description = "E-way Bill Number") @PathVariable String ewayBillNumber) {
-        boolean exists = tripService.ewayBillNumberExists(ewayBillNumber);
-        return ResponseEntity.ok(ApiResponse.success(exists));
-    }
-
     // ==================== Helper Methods ====================
 
-    private TripSearchCriteria buildExportCriteria(String ewayBillNumber, String transporter,
+    private TripSearchCriteria buildExportCriteria(String transporter,
                                                     String status, String createdFrom, String createdTo) {
         return TripSearchCriteria.builder()
-                .ewayBillNumber(ewayBillNumber)
                 .transporter(transporter)
                 .status(status != null ? com.logifin.entity.Trip.TripStatus.valueOf(status) : null)
                 .createdFrom(createdFrom != null ? LocalDate.parse(createdFrom) : null)

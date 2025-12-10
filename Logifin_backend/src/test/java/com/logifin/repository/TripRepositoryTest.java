@@ -19,11 +19,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -86,7 +82,6 @@ class TripRepositoryTest {
 
         // Create test trips
         testTrip1 = Trip.builder()
-                .ewayBillNumber("EWB001")
                 .pickup("Mumbai")
                 .destination("Delhi")
                 .sender("Sender A")
@@ -105,7 +100,6 @@ class TripRepositoryTest {
         testTrip1 = entityManager.persistAndFlush(testTrip1);
 
         testTrip2 = Trip.builder()
-                .ewayBillNumber("EWB002")
                 .pickup("Chennai")
                 .destination("Bangalore")
                 .sender("Sender B")
@@ -124,7 +118,6 @@ class TripRepositoryTest {
         testTrip2 = entityManager.persistAndFlush(testTrip2);
 
         testTrip3 = Trip.builder()
-                .ewayBillNumber("EWB003")
                 .pickup("Mumbai")
                 .destination("Pune")
                 .sender("Sender C")
@@ -146,45 +139,6 @@ class TripRepositoryTest {
     }
 
     @Nested
-    @DisplayName("Find By E-way Bill Number Tests")
-    class FindByEwayBillNumberTests {
-
-        @Test
-        @DisplayName("Should find trip by E-way Bill Number")
-        void findByEwayBillNumber_Success() {
-            Optional<Trip> result = tripRepository.findByEwayBillNumber("EWB001");
-
-            assertThat(result).isPresent();
-            assertThat(result.get().getPickup()).isEqualTo("Mumbai");
-            assertThat(result.get().getDestination()).isEqualTo("Delhi");
-        }
-
-        @Test
-        @DisplayName("Should return empty when E-way Bill Number not found")
-        void findByEwayBillNumber_NotFound() {
-            Optional<Trip> result = tripRepository.findByEwayBillNumber("EWB999");
-
-            assertThat(result).isEmpty();
-        }
-
-        @Test
-        @DisplayName("Should check if E-way Bill Number exists")
-        void existsByEwayBillNumber_True() {
-            boolean exists = tripRepository.existsByEwayBillNumber("EWB001");
-
-            assertThat(exists).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should return false when E-way Bill Number does not exist")
-        void existsByEwayBillNumber_False() {
-            boolean exists = tripRepository.existsByEwayBillNumber("EWB999");
-
-            assertThat(exists).isFalse();
-        }
-    }
-
-    @Nested
     @DisplayName("Find By Status Tests")
     class FindByStatusTests {
 
@@ -194,7 +148,7 @@ class TripRepositoryTest {
             Page<Trip> result = tripRepository.findByStatus(Trip.TripStatus.ACTIVE, PageRequest.of(0, 10));
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getEwayBillNumber()).isEqualTo("EWB001");
+            assertThat(result.getContent().get(0).getPickup()).isEqualTo("Mumbai");
         }
 
         @Test
@@ -306,23 +260,6 @@ class TripRepositoryTest {
     }
 
     @Nested
-    @DisplayName("Bulk Validation Tests")
-    class BulkValidationTests {
-
-        @Test
-        @DisplayName("Should find existing E-way Bill Numbers")
-        void findExistingEwayBillNumbers_Success() {
-            List<String> ewayBillNumbers = Arrays.asList("EWB001", "EWB002", "EWB999");
-
-            List<String> existing = tripRepository.findExistingEwayBillNumbers(ewayBillNumbers);
-
-            assertThat(existing).hasSize(2);
-            assertThat(existing).contains("EWB001", "EWB002");
-            assertThat(existing).doesNotContain("EWB999");
-        }
-    }
-
-    @Nested
     @DisplayName("Specification Tests")
     class SpecificationTests {
 
@@ -350,7 +287,7 @@ class TripRepositoryTest {
             Page<Trip> result = tripRepository.findAll(spec, PageRequest.of(0, 10));
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getEwayBillNumber()).isEqualTo("EWB002");
+            assertThat(result.getContent().get(0).getPickup()).isEqualTo("Chennai");
         }
 
         @Test
@@ -379,7 +316,7 @@ class TripRepositoryTest {
             Page<Trip> result = tripRepository.findAll(spec, PageRequest.of(0, 10));
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getEwayBillNumber()).isEqualTo("EWB001");
+            assertThat(result.getContent().get(0).getDestination()).isEqualTo("Delhi");
         }
 
         @Test
@@ -394,7 +331,8 @@ class TripRepositoryTest {
             Page<Trip> result = tripRepository.findAll(spec, PageRequest.of(0, 10));
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getEwayBillNumber()).isEqualTo("EWB001");
+            assertThat(result.getContent().get(0).getPickup()).isEqualTo("Mumbai");
+            assertThat(result.getContent().get(0).getDestination()).isEqualTo("Delhi");
         }
     }
 

@@ -25,9 +25,6 @@ public class TripBidResponseDTO {
     @Schema(description = "Trip ID", example = "1")
     private Long tripId;
 
-    @Schema(description = "Trip E-way Bill Number", example = "EWB123456789")
-    private String tripEwayBillNumber;
-
     @Schema(description = "Trip pickup location", example = "Mumbai, Maharashtra")
     private String tripPickup;
 

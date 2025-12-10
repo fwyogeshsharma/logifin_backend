@@ -31,9 +31,9 @@ public class TripDocumentDTO {
     @Schema(description = "Document type code", example = "EWAY_BILL", required = true)
     private String documentTypeCode;
 
-    @Size(max = 255, message = "Document name must not exceed 255 characters")
-    @Schema(description = "Document name", example = "eway_bill_123.pdf")
-    private String documentName;
+    @Size(max = 100, message = "Document number must not exceed 100 characters")
+    @Schema(description = "Document reference number (e.g., E-way Bill Number, Bilty Number)", example = "EWB123456789")
+    private String documentNumber;
 
     @Schema(description = "Base64 encoded document data")
     private String documentBase64;
@@ -43,10 +43,6 @@ public class TripDocumentDTO {
 
     @Schema(description = "File size in bytes", example = "102400")
     private Long fileSize;
-
-    @Size(max = 500, message = "Description must not exceed 500 characters")
-    @Schema(description = "Document description", example = "E-Way Bill for trip EWB123456789")
-    private String description;
 
     @Schema(description = "Uploaded by user ID", example = "1")
     private Long uploadedByUserId;
@@ -78,10 +74,9 @@ public class TripDocumentDTO {
         private Long documentTypeId;
         private String documentTypeCode;
         private String documentTypeDisplayName;
-        private String documentName;
+        private String documentNumber;
         private String contentType;
         private Long fileSize;
-        private String description;
         private Long uploadedByUserId;
         private String uploadedByUserName;
         private LocalDateTime createdAt;

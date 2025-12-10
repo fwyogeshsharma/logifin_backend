@@ -56,7 +56,7 @@ public class TripServiceImpl implements TripService {
     private final TripExcelParser tripExcelParser;
 
     private static final String[] CSV_HEADERS = {
-            "ewayBillNumber", "pickup", "destination", "sender", "receiver",
+            "pickup", "destination", "sender", "receiver",
             "transporter", "loanAmount", "interestRate", "maturityDays",
             "distanceKm", "loadType", "weightKg", "notes"
     };
@@ -65,12 +65,7 @@ public class TripServiceImpl implements TripService {
 
     @Override
     public TripResponseDTO createTrip(TripRequestDTO requestDTO, Long userId) {
-        log.debug("Creating trip with E-way Bill Number: {}", requestDTO.getEwayBillNumber());
-
-        // Check for duplicate E-way Bill Number
-        if (tripRepository.existsByEwayBillNumber(requestDTO.getEwayBillNumber())) {
-            throw new DuplicateResourceException("Trip", "ewayBillNumber", requestDTO.getEwayBillNumber());
-        }
+        log.debug("Creating new trip");
 
         // Get the user
         User user = userRepository.findById(userId)
@@ -80,10 +75,9 @@ public class TripServiceImpl implements TripService {
         Trip trip = buildTripFromRequest(requestDTO, user);
         Trip savedTrip = tripRepository.save(trip);
 
-        // Handle E-way Bill image if provided
-        if (StringUtils.hasText(requestDTO.getEwayBillImageBase64())) {
-            uploadDocumentFromBase64(savedTrip, DocumentType.CODE_EWAY_BILL,
-                    requestDTO.getEwayBillImageBase64(), "E-Way Bill Image", user);
+        // Handle documents (all optional)
+        if (requestDTO.getDocuments() != null && !requestDTO.getDocuments().isEmpty()) {
+            uploadDocuments(savedTrip, requestDTO.getDocuments(), user);
         }
 
         log.info("Trip created successfully with ID: {}", savedTrip.getId());
@@ -106,24 +100,15 @@ public class TripServiceImpl implements TripService {
         Trip existingTrip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", "id", tripId));
 
-        // Check for duplicate E-way Bill Number (if changed)
-        if (!existingTrip.getEwayBillNumber().equals(requestDTO.getEwayBillNumber())
-                && tripRepository.existsByEwayBillNumber(requestDTO.getEwayBillNumber())) {
-            throw new DuplicateResourceException("Trip", "ewayBillNumber", requestDTO.getEwayBillNumber());
-        }
-
         // Update fields
         updateTripFromRequest(existingTrip, requestDTO);
         Trip updatedTrip = tripRepository.save(existingTrip);
 
-        // Handle E-way Bill image if provided
-        if (StringUtils.hasText(requestDTO.getEwayBillImageBase64())) {
+        // Handle documents (replace if provided)
+        if (requestDTO.getDocuments() != null && !requestDTO.getDocuments().isEmpty()) {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-            // Delete existing and upload new
-            tripDocumentRepository.deleteByTripIdAndDocumentTypeCode(tripId, DocumentType.CODE_EWAY_BILL);
-            uploadDocumentFromBase64(updatedTrip, DocumentType.CODE_EWAY_BILL,
-                    requestDTO.getEwayBillImageBase64(), "E-Way Bill Image", user);
+            updateDocuments(updatedTrip, requestDTO.getDocuments(), user);
         }
 
         log.info("Trip updated successfully: {}", tripId);
@@ -205,31 +190,19 @@ public class TripServiceImpl implements TripService {
                 return response;
             }
 
-            // Get existing E-way Bill Numbers for duplicate checking
-            List<String> ewayBillNumbers = tripRequests.stream()
-                    .map(TripRequestDTO::getEwayBillNumber)
-                    .filter(StringUtils::hasText)
-                    .collect(Collectors.toList());
-            Set<String> existingEwayBillNumbers = new HashSet<>(
-                    tripRepository.findExistingEwayBillNumbers(ewayBillNumbers));
-
             // Process each trip
             int rowNumber = 2; // Start from 2 (row 1 is header)
             for (TripRequestDTO request : tripRequests) {
                 try {
-                    if (existingEwayBillNumbers.contains(request.getEwayBillNumber())) {
-                        response.addError(ErrorRowDTO.duplicateError(rowNumber, request.getEwayBillNumber()));
-                    } else {
-                        Trip trip = buildTripFromRequest(request, user);
-                        Trip savedTrip = tripRepository.save(trip);
-                        response.addSuccessfulTripId(savedTrip.getId());
-                        existingEwayBillNumbers.add(request.getEwayBillNumber()); // Prevent duplicates within file
-                    }
+                    Trip trip = buildTripFromRequest(request, user);
+                    Trip savedTrip = tripRepository.save(trip);
+                    response.addSuccessfulTripId(savedTrip.getId());
                 } catch (Exception e) {
                     log.error("Error saving trip at row {}: {}", rowNumber, e.getMessage());
+                    String rowIdentifier = request.getTransporter() + " - " + request.getPickup();
                     response.addError(ErrorRowDTO.builder()
                             .rowNumber(rowNumber)
-                            .ewayBillNumber(request.getEwayBillNumber())
+                            .rowIdentifier(rowIdentifier)
                             .errorType(ErrorRowDTO.ErrorType.DATABASE_ERROR)
                             .errors(new ArrayList<>(Collections.singletonList(e.getMessage())))
                             .build());
@@ -262,7 +235,6 @@ public class TripServiceImpl implements TripService {
 
         // Data rows
         for (Trip trip : trips) {
-            csv.append(escapeCsvField(trip.getEwayBillNumber())).append(",");
             csv.append(escapeCsvField(trip.getPickup())).append(",");
             csv.append(escapeCsvField(trip.getDestination())).append(",");
             csv.append(escapeCsvField(trip.getSender())).append(",");
@@ -302,7 +274,7 @@ public class TripServiceImpl implements TripService {
 
             // Header row
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"E-way Bill Number", "Pickup", "Destination", "Sender", "Receiver",
+            String[] headers = {"Pickup", "Destination", "Sender", "Receiver",
                     "Transporter", "Loan Amount", "Interest Rate", "Maturity Days",
                     "Distance (km)", "Load Type", "Weight (kg)", "Notes", "Status", "Created At"};
             for (int i = 0; i < headers.length; i++) {
@@ -315,21 +287,20 @@ public class TripServiceImpl implements TripService {
             int rowNum = 1;
             for (Trip trip : trips) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(trip.getEwayBillNumber());
-                row.createCell(1).setCellValue(trip.getPickup());
-                row.createCell(2).setCellValue(trip.getDestination());
-                row.createCell(3).setCellValue(trip.getSender());
-                row.createCell(4).setCellValue(trip.getReceiver());
-                row.createCell(5).setCellValue(trip.getTransporter());
-                row.createCell(6).setCellValue(trip.getLoanAmount().doubleValue());
-                row.createCell(7).setCellValue(trip.getInterestRate().doubleValue());
-                row.createCell(8).setCellValue(trip.getMaturityDays());
-                row.createCell(9).setCellValue(trip.getDistanceKm() != null ? trip.getDistanceKm().doubleValue() : 0);
-                row.createCell(10).setCellValue(trip.getLoadType() != null ? trip.getLoadType() : "");
-                row.createCell(11).setCellValue(trip.getWeightKg() != null ? trip.getWeightKg().doubleValue() : 0);
-                row.createCell(12).setCellValue(trip.getNotes() != null ? trip.getNotes() : "");
-                row.createCell(13).setCellValue(trip.getStatus().name());
-                row.createCell(14).setCellValue(trip.getCreatedAt() != null ?
+                row.createCell(0).setCellValue(trip.getPickup());
+                row.createCell(1).setCellValue(trip.getDestination());
+                row.createCell(2).setCellValue(trip.getSender());
+                row.createCell(3).setCellValue(trip.getReceiver());
+                row.createCell(4).setCellValue(trip.getTransporter());
+                row.createCell(5).setCellValue(trip.getLoanAmount().doubleValue());
+                row.createCell(6).setCellValue(trip.getInterestRate().doubleValue());
+                row.createCell(7).setCellValue(trip.getMaturityDays());
+                row.createCell(8).setCellValue(trip.getDistanceKm() != null ? trip.getDistanceKm().doubleValue() : 0);
+                row.createCell(9).setCellValue(trip.getLoadType() != null ? trip.getLoadType() : "");
+                row.createCell(10).setCellValue(trip.getWeightKg() != null ? trip.getWeightKg().doubleValue() : 0);
+                row.createCell(11).setCellValue(trip.getNotes() != null ? trip.getNotes() : "");
+                row.createCell(12).setCellValue(trip.getStatus().name());
+                row.createCell(13).setCellValue(trip.getCreatedAt() != null ?
                         trip.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "");
             }
 
@@ -352,7 +323,7 @@ public class TripServiceImpl implements TripService {
         StringBuilder csv = new StringBuilder();
         csv.append(String.join(",", CSV_HEADERS)).append("\n");
         // Sample row
-        csv.append("EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,Sample notes\n");
+        csv.append("Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,Sample notes\n");
         return csv.toString().getBytes();
     }
 
@@ -373,7 +344,7 @@ public class TripServiceImpl implements TripService {
 
             // Header row
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"E-way Bill Number*", "Pickup*", "Destination*", "Sender*", "Receiver*",
+            String[] headers = {"Pickup*", "Destination*", "Sender*", "Receiver*",
                     "Transporter*", "Loan Amount*", "Interest Rate*", "Maturity Days*",
                     "Distance (km)", "Load Type", "Weight (kg)", "Notes"};
             for (int i = 0; i < headers.length; i++) {
@@ -384,19 +355,18 @@ public class TripServiceImpl implements TripService {
 
             // Sample data row
             Row sampleRow = sheet.createRow(1);
-            sampleRow.createCell(0).setCellValue("EWB123456789");
-            sampleRow.createCell(1).setCellValue("Mumbai, Maharashtra");
-            sampleRow.createCell(2).setCellValue("Delhi, NCR");
-            sampleRow.createCell(3).setCellValue("ABC Traders");
-            sampleRow.createCell(4).setCellValue("XYZ Industries");
-            sampleRow.createCell(5).setCellValue("Fast Logistics Pvt Ltd");
-            sampleRow.createCell(6).setCellValue(100000);
-            sampleRow.createCell(7).setCellValue(12.5);
-            sampleRow.createCell(8).setCellValue(30);
-            sampleRow.createCell(9).setCellValue(1400.5);
-            sampleRow.createCell(10).setCellValue("Electronics");
-            sampleRow.createCell(11).setCellValue(5000);
-            sampleRow.createCell(12).setCellValue("Handle with care");
+            sampleRow.createCell(0).setCellValue("Mumbai, Maharashtra");
+            sampleRow.createCell(1).setCellValue("Delhi, NCR");
+            sampleRow.createCell(2).setCellValue("ABC Traders");
+            sampleRow.createCell(3).setCellValue("XYZ Industries");
+            sampleRow.createCell(4).setCellValue("Fast Logistics Pvt Ltd");
+            sampleRow.createCell(5).setCellValue(100000);
+            sampleRow.createCell(6).setCellValue(12.5);
+            sampleRow.createCell(7).setCellValue(30);
+            sampleRow.createCell(8).setCellValue(1400.5);
+            sampleRow.createCell(9).setCellValue("Electronics");
+            sampleRow.createCell(10).setCellValue(5000);
+            sampleRow.createCell(11).setCellValue("Handle with care");
 
             // Auto-size columns
             for (int i = 0; i < headers.length; i++) {
@@ -407,11 +377,11 @@ public class TripServiceImpl implements TripService {
             Sheet instructionsSheet = workbook.createSheet("Instructions");
             instructionsSheet.createRow(0).createCell(0).setCellValue("BULK UPLOAD INSTRUCTIONS");
             instructionsSheet.createRow(2).createCell(0).setCellValue("1. Fields marked with * are required");
-            instructionsSheet.createRow(3).createCell(0).setCellValue("2. E-way Bill Number must be unique");
-            instructionsSheet.createRow(4).createCell(0).setCellValue("3. Loan Amount must be greater than 0");
-            instructionsSheet.createRow(5).createCell(0).setCellValue("4. Interest Rate must be between 0 and 100");
-            instructionsSheet.createRow(6).createCell(0).setCellValue("5. Maturity Days must be between 1 and 365");
-            instructionsSheet.createRow(7).createCell(0).setCellValue("6. Distance and Weight are optional");
+            instructionsSheet.createRow(3).createCell(0).setCellValue("2. Loan Amount must be greater than 0");
+            instructionsSheet.createRow(4).createCell(0).setCellValue("3. Interest Rate must be between 0 and 100");
+            instructionsSheet.createRow(5).createCell(0).setCellValue("4. Maturity Days must be between 1 and 365");
+            instructionsSheet.createRow(6).createCell(0).setCellValue("5. Distance and Weight are optional");
+            instructionsSheet.createRow(7).createCell(0).setCellValue("6. Documents can be added individually via API after upload");
 
             workbook.write(out);
             return out.toByteArray();
@@ -506,11 +476,9 @@ public class TripServiceImpl implements TripService {
         TripDocument document = TripDocument.builder()
                 .trip(trip)
                 .documentType(docType)
-                .documentName(documentDTO.getDocumentName())
                 .documentData(documentData)
                 .contentType(documentDTO.getContentType())
                 .fileSize(documentData != null ? (long) documentData.length : null)
-                .description(documentDTO.getDescription())
                 .uploadedByUser(user)
                 .build();
 
@@ -564,17 +532,10 @@ public class TripServiceImpl implements TripService {
 
     // ==================== Validation ====================
 
-    @Override
-    @Transactional(readOnly = true)
-    public boolean ewayBillNumberExists(String ewayBillNumber) {
-        return tripRepository.existsByEwayBillNumber(ewayBillNumber);
-    }
-
     // ==================== Helper Methods ====================
 
     private Trip buildTripFromRequest(TripRequestDTO request, User user) {
         return Trip.builder()
-                .ewayBillNumber(request.getEwayBillNumber())
                 .pickup(request.getPickup())
                 .destination(request.getDestination())
                 .sender(request.getSender())
@@ -594,7 +555,6 @@ public class TripServiceImpl implements TripService {
     }
 
     private void updateTripFromRequest(Trip trip, TripRequestDTO request) {
-        trip.setEwayBillNumber(request.getEwayBillNumber());
         trip.setPickup(request.getPickup());
         trip.setDestination(request.getDestination());
         trip.setSender(request.getSender());
@@ -615,10 +575,14 @@ public class TripServiceImpl implements TripService {
     private TripResponseDTO mapToResponseDTO(Trip trip) {
         BigDecimal interestAmount = calculateInterestAmount(trip.getLoanAmount(), trip.getInterestRate(), trip.getMaturityDays());
 
+        // Get documents for this trip
+        List<TripDocument> tripDocuments = tripDocumentRepository.findByTripId(trip.getId());
+        List<DocumentInfoDTO> documentInfoList = tripDocuments.stream()
+                .map(this::mapToDocumentInfoDTO)
+                .collect(Collectors.toList());
+
         return TripResponseDTO.builder()
                 .id(trip.getId())
-                .ewayBillNumber(trip.getEwayBillNumber())
-                .hasEwayBillImage(tripDocumentRepository.existsByTripIdAndDocumentTypeCode(trip.getId(), DocumentType.CODE_EWAY_BILL))
                 .pickup(trip.getPickup())
                 .destination(trip.getDestination())
                 .sender(trip.getSender())
@@ -641,6 +605,7 @@ public class TripServiceImpl implements TripService {
                 .updatedAt(trip.getUpdatedAt())
                 .totalInterestAmount(interestAmount)
                 .totalAmountDue(trip.getLoanAmount().add(interestAmount))
+                .documents(documentInfoList)
                 .build();
     }
 
@@ -662,38 +627,6 @@ public class TripServiceImpl implements TripService {
         return PagedResponse.of(tripPage, content);
     }
 
-    private void uploadDocumentFromBase64(Trip trip, String documentTypeCode, String base64Data, String name, User user) {
-        try {
-            DocumentType docType = documentTypeRepository.findByCode(documentTypeCode)
-                    .orElseThrow(() -> new ResourceNotFoundException("DocumentType", "code", documentTypeCode));
-
-            String cleanBase64 = base64Data.replaceFirst("^data:[^;]+;base64,", "");
-            byte[] data = Base64.getDecoder().decode(cleanBase64);
-
-            String contentType = "image/png"; // Default
-            if (base64Data.startsWith("data:")) {
-                int endIndex = base64Data.indexOf(";");
-                if (endIndex > 5) {
-                    contentType = base64Data.substring(5, endIndex);
-                }
-            }
-
-            TripDocument document = TripDocument.builder()
-                    .trip(trip)
-                    .documentType(docType)
-                    .documentName(name)
-                    .documentData(data)
-                    .contentType(contentType)
-                    .fileSize((long) data.length)
-                    .uploadedByUser(user)
-                    .build();
-
-            tripDocumentRepository.save(document);
-        } catch (Exception e) {
-            log.error("Error saving document: {}", e.getMessage());
-        }
-    }
-
     private TripDocumentDTO.TripDocumentMetadataDTO mapToDocumentMetadataDTO(TripDocument document) {
         return TripDocumentDTO.TripDocumentMetadataDTO.builder()
                 .id(document.getId())
@@ -701,10 +634,9 @@ public class TripServiceImpl implements TripService {
                 .documentTypeId(document.getDocumentType().getId())
                 .documentTypeCode(document.getDocumentType().getCode())
                 .documentTypeDisplayName(document.getDocumentType().getDisplayName())
-                .documentName(document.getDocumentName())
+                .documentNumber(document.getDocumentNumber())
                 .contentType(document.getContentType())
                 .fileSize(document.getFileSize())
-                .description(document.getDescription())
                 .uploadedByUserId(document.getUploadedByUser() != null ? document.getUploadedByUser().getId() : null)
                 .uploadedByUserName(document.getUploadedByUser() != null ?
                         document.getUploadedByUser().getFirstName() + " " + document.getUploadedByUser().getLastName() : null)
@@ -719,12 +651,11 @@ public class TripServiceImpl implements TripService {
                 .tripId(document.getTrip().getId())
                 .documentTypeId(document.getDocumentType().getId())
                 .documentTypeCode(document.getDocumentType().getCode())
-                .documentName(document.getDocumentName())
+                .documentNumber(document.getDocumentNumber())
                 .documentBase64(document.getDocumentData() != null ?
                         Base64.getEncoder().encodeToString(document.getDocumentData()) : null)
                 .contentType(document.getContentType())
                 .fileSize(document.getFileSize())
-                .description(document.getDescription())
                 .uploadedByUserId(document.getUploadedByUser() != null ? document.getUploadedByUser().getId() : null)
                 .uploadedByUserName(document.getUploadedByUser() != null ?
                         document.getUploadedByUser().getFirstName() + " " + document.getUploadedByUser().getLastName() : null)
@@ -758,5 +689,102 @@ public class TripServiceImpl implements TripService {
             }
         }
         return map;
+    }
+
+    // ==================== Document Upload Helper Methods ====================
+
+    /**
+     * Upload documents for a new trip
+     */
+    private void uploadDocuments(Trip trip, List<DocumentUploadDTO> documents, User user) {
+        for (DocumentUploadDTO dto : documents) {
+            if (dto != null && dto.hasContent()) {
+                uploadSingleDocument(trip, dto, user);
+            }
+        }
+    }
+
+    /**
+     * Update documents for an existing trip (replace if document type already exists)
+     */
+    private void updateDocuments(Trip trip, List<DocumentUploadDTO> documents, User user) {
+        for (DocumentUploadDTO dto : documents) {
+            if (dto != null && dto.hasContent()) {
+                // Delete existing document of same type
+                tripDocumentRepository.deleteByTripIdAndDocumentTypeId(trip.getId(), dto.getDocumentTypeId());
+                uploadSingleDocument(trip, dto, user);
+            }
+        }
+    }
+
+    /**
+     * Upload a single document from DocumentUploadDTO
+     */
+    private void uploadSingleDocument(Trip trip, DocumentUploadDTO dto, User user) {
+        try {
+            DocumentType docType = documentTypeRepository.findById(dto.getDocumentTypeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("DocumentType", "id", dto.getDocumentTypeId()));
+
+            byte[] documentData = null;
+            String contentType = null;
+            Long fileSize = null;
+
+            // Process base64 data if provided
+            if (dto.hasData()) {
+                String base64Data = dto.getDocumentBase64();
+                String cleanBase64 = base64Data.replaceFirst("^data:[^;]+;base64,", "");
+                documentData = Base64.getDecoder().decode(cleanBase64);
+                fileSize = (long) documentData.length;
+
+                // Extract content type from data URI
+                contentType = "application/octet-stream";
+                if (base64Data.startsWith("data:")) {
+                    int endIndex = base64Data.indexOf(";");
+                    if (endIndex > 5) {
+                        contentType = base64Data.substring(5, endIndex);
+                    }
+                }
+            }
+
+            TripDocument document = TripDocument.builder()
+                    .trip(trip)
+                    .documentType(docType)
+                    .documentNumber(dto.getDocumentNumber())
+                    .documentData(documentData)
+                    .contentType(contentType)
+                    .fileSize(fileSize)
+                    .uploadedByUser(user)
+                    .build();
+
+            tripDocumentRepository.save(document);
+            log.debug("Document uploaded for trip ID: {}, type: {}, number: {}",
+                    trip.getId(), docType.getCode(), dto.getDocumentNumber());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid base64 data for document type ID {}: {}", dto.getDocumentTypeId(), e.getMessage());
+        } catch (ResourceNotFoundException e) {
+            log.error("Document type not found: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error saving document for trip ID {}: {}", trip.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Map TripDocument entity to DocumentInfoDTO
+     */
+    private DocumentInfoDTO mapToDocumentInfoDTO(TripDocument document) {
+        return DocumentInfoDTO.builder()
+                .id(document.getId())
+                .documentTypeId(document.getDocumentType().getId())
+                .documentTypeCode(document.getDocumentType().getCode())
+                .documentTypeName(document.getDocumentType().getDisplayName())
+                .documentNumber(document.getDocumentNumber())
+                .hasData(document.getDocumentData() != null && document.getDocumentData().length > 0)
+                .contentType(document.getContentType())
+                .fileSize(document.getFileSize())
+                .uploadedAt(document.getCreatedAt())
+                .uploadedByUserId(document.getUploadedByUser() != null ? document.getUploadedByUser().getId() : null)
+                .uploadedByUserName(document.getUploadedByUser() != null ?
+                        document.getUploadedByUser().getFirstName() + " " + document.getUploadedByUser().getLastName() : null)
+                .build();
     }
 }

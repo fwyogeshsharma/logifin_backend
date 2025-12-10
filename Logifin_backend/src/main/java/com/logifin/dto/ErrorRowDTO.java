@@ -22,8 +22,8 @@ public class ErrorRowDTO {
     @Schema(description = "Row number in the uploaded file (1-indexed)", example = "5")
     private int rowNumber;
 
-    @Schema(description = "E-way Bill Number from the row (if available)", example = "EWB123456789")
-    private String ewayBillNumber;
+    @Schema(description = "Row identifier (e.g., transporter + pickup) for reference", example = "Fast Logistics - Mumbai")
+    private String rowIdentifier;
 
     @Schema(description = "List of validation/parsing errors for this row")
     @Builder.Default
@@ -40,7 +40,7 @@ public class ErrorRowDTO {
      */
     public enum ErrorType {
         VALIDATION_ERROR,
-        DUPLICATE_EWAY_BILL,
+        DUPLICATE_ENTRY,
         PARSING_ERROR,
         MISSING_REQUIRED_FIELD,
         INVALID_FORMAT,
@@ -60,24 +60,12 @@ public class ErrorRowDTO {
     /**
      * Create an ErrorRowDTO for a validation error
      */
-    public static ErrorRowDTO validationError(int rowNumber, String ewayBillNumber, String error) {
+    public static ErrorRowDTO validationError(int rowNumber, String rowIdentifier, String error) {
         return ErrorRowDTO.builder()
                 .rowNumber(rowNumber)
-                .ewayBillNumber(ewayBillNumber)
+                .rowIdentifier(rowIdentifier)
                 .errorType(ErrorType.VALIDATION_ERROR)
                 .errors(new ArrayList<>(Collections.singletonList(error)))
-                .build();
-    }
-
-    /**
-     * Create an ErrorRowDTO for a duplicate e-way bill
-     */
-    public static ErrorRowDTO duplicateError(int rowNumber, String ewayBillNumber) {
-        return ErrorRowDTO.builder()
-                .rowNumber(rowNumber)
-                .ewayBillNumber(ewayBillNumber)
-                .errorType(ErrorType.DUPLICATE_EWAY_BILL)
-                .errors(new ArrayList<>(Collections.singletonList("E-way Bill Number already exists: " + ewayBillNumber)))
                 .build();
     }
 

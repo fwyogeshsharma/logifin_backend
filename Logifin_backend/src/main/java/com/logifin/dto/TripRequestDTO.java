@@ -4,27 +4,24 @@ import com.logifin.entity.Trip;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
+import javax.validation.Valid;
 import javax.validation.constraints.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Request DTO for creating or updating a Trip.
+ * Documents are passed as an array with documentTypeId, documentNumber, and optional base64 data.
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Request payload for creating or updating a trip")
+@Schema(description = "Request payload for creating or updating a trip with optional documents")
 public class TripRequestDTO {
 
-    @NotBlank(message = "E-way Bill Number is required")
-    @Size(max = 50, message = "E-way Bill Number must not exceed 50 characters")
-    @Schema(description = "Unique E-way Bill Number", example = "EWB123456789", required = true)
-    private String ewayBillNumber;
-
-    @Schema(description = "Base64 encoded E-way Bill image", example = "data:image/png;base64,iVBORw0KGgo...")
-    private String ewayBillImageBase64;
+    // ==================== Route Information ====================
 
     @NotBlank(message = "Pickup location is required")
     @Size(max = 255, message = "Pickup location must not exceed 255 characters")
@@ -35,6 +32,8 @@ public class TripRequestDTO {
     @Size(max = 255, message = "Destination must not exceed 255 characters")
     @Schema(description = "Destination address", example = "Delhi, NCR", required = true)
     private String destination;
+
+    // ==================== Parties ====================
 
     @NotBlank(message = "Sender name is required")
     @Size(max = 150, message = "Sender name must not exceed 150 characters")
@@ -50,6 +49,8 @@ public class TripRequestDTO {
     @Size(max = 150, message = "Transporter name must not exceed 150 characters")
     @Schema(description = "Name of the transporter", example = "Fast Logistics Pvt Ltd", required = true)
     private String transporter;
+
+    // ==================== Financial Terms ====================
 
     @NotNull(message = "Loan amount is required")
     @DecimalMin(value = "0.01", message = "Loan amount must be greater than 0")
@@ -69,6 +70,8 @@ public class TripRequestDTO {
     @Max(value = 365, message = "Maturity days must not exceed 365")
     @Schema(description = "Number of days until maturity", example = "30", required = true)
     private Integer maturityDays;
+
+    // ==================== Cargo Details (Optional) ====================
 
     @DecimalMin(value = "0.0", inclusive = true, message = "Distance must be 0 or greater")
     @Digits(integer = 8, fraction = 2, message = "Distance must have at most 8 integer digits and 2 decimal places")
@@ -90,4 +93,10 @@ public class TripRequestDTO {
 
     @Schema(description = "Trip status", example = "ACTIVE")
     private Trip.TripStatus status;
+
+    // ==================== Documents (All Optional) ====================
+
+    @Valid
+    @Schema(description = "List of documents to attach (EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, FINAL_INVOICE)")
+    private List<DocumentUploadDTO> documents;
 }

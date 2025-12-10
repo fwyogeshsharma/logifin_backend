@@ -30,8 +30,14 @@ public class UserPrincipal implements UserDetails {
         Collection<GrantedAuthority> authorities = Collections.emptyList();
 
         if (user.getRole() != null) {
+            // Add ROLE_ prefix for Spring Security's hasRole() method compatibility
+            // hasRole("TRANSPORTER") internally checks for "ROLE_TRANSPORTER"
+            String roleName = user.getRole().getRoleName();
+            if (!roleName.startsWith("ROLE_")) {
+                roleName = "ROLE_" + roleName;
+            }
             authorities = Collections.singletonList(
-                    new SimpleGrantedAuthority(user.getRole().getRoleName())
+                    new SimpleGrantedAuthority(roleName)
             );
         }
 

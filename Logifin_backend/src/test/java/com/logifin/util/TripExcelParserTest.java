@@ -41,9 +41,9 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should parse valid CSV file successfully")
         void parseCsv_ValidFile_Success() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,Handle with care\n" +
-                    "EWB987654321,Chennai,Bangalore,Sender B,Receiver B,Quick Transport,200000,10.0,45,350,Textiles,3000,Fragile items";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,Handle with care\n" +
+                    "Chennai,Bangalore,Sender B,Receiver B,Quick Transport,200000,10.0,45,350,Textiles,3000,Fragile items";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -55,18 +55,18 @@ class TripExcelParserTest {
             List<TripRequestDTO> result = tripExcelParser.parseCsv(file, response);
 
             assertThat(result).hasSize(2);
-            assertThat(result.get(0).getEwayBillNumber()).isEqualTo("EWB123456789");
             assertThat(result.get(0).getPickup()).isEqualTo("Mumbai");
+            assertThat(result.get(0).getDestination()).isEqualTo("Delhi");
             assertThat(result.get(0).getLoanAmount()).isEqualByComparingTo(new BigDecimal("100000"));
-            assertThat(result.get(1).getEwayBillNumber()).isEqualTo("EWB987654321");
+            assertThat(result.get(1).getPickup()).isEqualTo("Chennai");
             assertThat(response.getErrors()).isEmpty();
         }
 
         @Test
         @DisplayName("Should handle CSV with missing required fields")
         void parseCsv_MissingRequiredFields() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    ",Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30"; // Missing E-way Bill
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    ",Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30"; // Missing pickup
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -85,8 +85,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle CSV with invalid numeric values")
         void parseCsv_InvalidNumericValues() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,invalid,12.5,30";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,invalid,12.5,30";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -105,8 +105,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle CSV with out-of-range values")
         void parseCsv_OutOfRangeValues() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,150,500"; // Interest > 100, Days > 365
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,150,500"; // Interest > 100, Days > 365
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -127,8 +127,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle CSV with quoted fields containing commas")
         void parseCsv_QuotedFields() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
-                    "EWB123456789,\"Mumbai, Maharashtra\",\"Delhi, NCR\",\"ABC Traders, Inc.\",XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,\"Handle with care, fragile\"";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
+                    "\"Mumbai, Maharashtra\",\"Delhi, NCR\",\"ABC Traders, Inc.\",XYZ Industries,Fast Logistics,100000,12.5,30,1400,Electronics,5000,\"Handle with care, fragile\"";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -149,11 +149,11 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should skip empty rows in CSV")
         void parseCsv_SkipEmptyRows() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30\n" +
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30\n" +
                     "\n" +
                     "   \n" +
-                    "EWB987654321,Chennai,Bangalore,Sender B,Receiver B,Quick Transport,200000,10.0,45";
+                    "Chennai,Bangalore,Sender B,Receiver B,Quick Transport,200000,10.0,45";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -171,8 +171,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle negative loan amount")
         void parseCsv_NegativeLoanAmount() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,-100000,12.5,30";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,-100000,12.5,30";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -207,9 +207,9 @@ class TripExcelParserTest {
             List<TripRequestDTO> result = tripExcelParser.parseExcel(file, response);
 
             assertThat(result).hasSize(2);
-            assertThat(result.get(0).getEwayBillNumber()).isEqualTo("EWB001");
+            assertThat(result.get(0).getPickup()).isEqualTo("Mumbai");
             assertThat(result.get(0).getLoanAmount()).isEqualByComparingTo(new BigDecimal("100000"));
-            assertThat(result.get(1).getEwayBillNumber()).isEqualTo("EWB002");
+            assertThat(result.get(1).getPickup()).isEqualTo("Chennai");
             assertThat(response.getErrors()).isEmpty();
         }
 
@@ -274,7 +274,7 @@ class TripExcelParserTest {
 
                 // Header row
                 Row headerRow = sheet.createRow(0);
-                String[] headers = {"ewayBillNumber", "pickup", "destination", "sender", "receiver",
+                String[] headers = {"pickup", "destination", "sender", "receiver",
                         "transporter", "loanAmount", "interestRate", "maturityDays",
                         "distanceKm", "loadType", "weightKg", "notes"};
                 for (int i = 0; i < headers.length; i++) {
@@ -283,31 +283,29 @@ class TripExcelParserTest {
 
                 // Data row 1
                 Row row1 = sheet.createRow(1);
-                row1.createCell(0).setCellValue("EWB001");
-                row1.createCell(1).setCellValue("Mumbai");
-                row1.createCell(2).setCellValue("Delhi");
-                row1.createCell(3).setCellValue("Sender A");
-                row1.createCell(4).setCellValue("Receiver A");
-                row1.createCell(5).setCellValue("Fast Logistics");
-                row1.createCell(6).setCellValue(100000);
-                row1.createCell(7).setCellValue(12.5);
-                row1.createCell(8).setCellValue(30);
-                row1.createCell(9).setCellValue(1400);
-                row1.createCell(10).setCellValue("Electronics");
-                row1.createCell(11).setCellValue(5000);
-                row1.createCell(12).setCellValue("Handle with care");
+                row1.createCell(0).setCellValue("Mumbai");
+                row1.createCell(1).setCellValue("Delhi");
+                row1.createCell(2).setCellValue("Sender A");
+                row1.createCell(3).setCellValue("Receiver A");
+                row1.createCell(4).setCellValue("Fast Logistics");
+                row1.createCell(5).setCellValue(100000);
+                row1.createCell(6).setCellValue(12.5);
+                row1.createCell(7).setCellValue(30);
+                row1.createCell(8).setCellValue(1400);
+                row1.createCell(9).setCellValue("Electronics");
+                row1.createCell(10).setCellValue(5000);
+                row1.createCell(11).setCellValue("Handle with care");
 
                 // Data row 2
                 Row row2 = sheet.createRow(2);
-                row2.createCell(0).setCellValue("EWB002");
-                row2.createCell(1).setCellValue("Chennai");
-                row2.createCell(2).setCellValue("Bangalore");
-                row2.createCell(3).setCellValue("Sender B");
-                row2.createCell(4).setCellValue("Receiver B");
-                row2.createCell(5).setCellValue("Quick Transport");
-                row2.createCell(6).setCellValue(200000);
-                row2.createCell(7).setCellValue(10.0);
-                row2.createCell(8).setCellValue(45);
+                row2.createCell(0).setCellValue("Chennai");
+                row2.createCell(1).setCellValue("Bangalore");
+                row2.createCell(2).setCellValue("Sender B");
+                row2.createCell(3).setCellValue("Receiver B");
+                row2.createCell(4).setCellValue("Quick Transport");
+                row2.createCell(5).setCellValue(200000);
+                row2.createCell(6).setCellValue(10.0);
+                row2.createCell(7).setCellValue(45);
 
                 workbook.write(out);
                 return out.toByteArray();
@@ -321,23 +319,22 @@ class TripExcelParserTest {
 
                 // Header row
                 Row headerRow = sheet.createRow(0);
-                String[] headers = {"ewayBillNumber", "pickup", "destination", "sender", "receiver",
+                String[] headers = {"pickup", "destination", "sender", "receiver",
                         "transporter", "loanAmount", "interestRate", "maturityDays"};
                 for (int i = 0; i < headers.length; i++) {
                     headerRow.createCell(i).setCellValue(headers[i]);
                 }
 
-                // Data row with missing E-way Bill Number
+                // Data row with missing pickup
                 Row row1 = sheet.createRow(1);
-                row1.createCell(0).setCellValue(""); // Empty E-way Bill
-                row1.createCell(1).setCellValue("Mumbai");
-                row1.createCell(2).setCellValue("Delhi");
-                row1.createCell(3).setCellValue("Sender A");
-                row1.createCell(4).setCellValue("Receiver A");
-                row1.createCell(5).setCellValue("Fast Logistics");
-                row1.createCell(6).setCellValue(100000);
-                row1.createCell(7).setCellValue(12.5);
-                row1.createCell(8).setCellValue(30);
+                row1.createCell(0).setCellValue(""); // Empty pickup
+                row1.createCell(1).setCellValue("Delhi");
+                row1.createCell(2).setCellValue("Sender A");
+                row1.createCell(3).setCellValue("Receiver A");
+                row1.createCell(4).setCellValue("Fast Logistics");
+                row1.createCell(5).setCellValue(100000);
+                row1.createCell(6).setCellValue(12.5);
+                row1.createCell(7).setCellValue(30);
 
                 workbook.write(out);
                 return out.toByteArray();
@@ -351,7 +348,7 @@ class TripExcelParserTest {
 
                 // Header row
                 Row headerRow = sheet.createRow(0);
-                String[] headers = {"ewayBillNumber", "pickup", "destination", "sender", "receiver",
+                String[] headers = {"pickup", "destination", "sender", "receiver",
                         "transporter", "loanAmount", "interestRate", "maturityDays"};
                 for (int i = 0; i < headers.length; i++) {
                     headerRow.createCell(i).setCellValue(headers[i]);
@@ -359,15 +356,14 @@ class TripExcelParserTest {
 
                 // Data row with numbers as text
                 Row row1 = sheet.createRow(1);
-                row1.createCell(0).setCellValue("EWB001");
-                row1.createCell(1).setCellValue("Mumbai");
-                row1.createCell(2).setCellValue("Delhi");
-                row1.createCell(3).setCellValue("Sender A");
-                row1.createCell(4).setCellValue("Receiver A");
-                row1.createCell(5).setCellValue("Fast Logistics");
-                row1.createCell(6).setCellValue("100000"); // Text
-                row1.createCell(7).setCellValue("12.5"); // Text
-                row1.createCell(8).setCellValue("30"); // Text
+                row1.createCell(0).setCellValue("Mumbai");
+                row1.createCell(1).setCellValue("Delhi");
+                row1.createCell(2).setCellValue("Sender A");
+                row1.createCell(3).setCellValue("Receiver A");
+                row1.createCell(4).setCellValue("Fast Logistics");
+                row1.createCell(5).setCellValue("100000"); // Text
+                row1.createCell(6).setCellValue("12.5"); // Text
+                row1.createCell(7).setCellValue("30"); // Text
 
                 workbook.write(out);
                 return out.toByteArray();
@@ -381,7 +377,7 @@ class TripExcelParserTest {
 
                 // Header row
                 Row headerRow = sheet.createRow(0);
-                String[] headers = {"ewayBillNumber", "pickup", "destination", "sender", "receiver",
+                String[] headers = {"pickup", "destination", "sender", "receiver",
                         "transporter", "loanAmount", "interestRate", "maturityDays"};
                 for (int i = 0; i < headers.length; i++) {
                     headerRow.createCell(i).setCellValue(headers[i]);
@@ -389,15 +385,14 @@ class TripExcelParserTest {
 
                 // Data row 1
                 Row row1 = sheet.createRow(1);
-                row1.createCell(0).setCellValue("EWB001");
-                row1.createCell(1).setCellValue("Mumbai");
-                row1.createCell(2).setCellValue("Delhi");
-                row1.createCell(3).setCellValue("Sender A");
-                row1.createCell(4).setCellValue("Receiver A");
-                row1.createCell(5).setCellValue("Fast Logistics");
-                row1.createCell(6).setCellValue(100000);
-                row1.createCell(7).setCellValue(12.5);
-                row1.createCell(8).setCellValue(30);
+                row1.createCell(0).setCellValue("Mumbai");
+                row1.createCell(1).setCellValue("Delhi");
+                row1.createCell(2).setCellValue("Sender A");
+                row1.createCell(3).setCellValue("Receiver A");
+                row1.createCell(4).setCellValue("Fast Logistics");
+                row1.createCell(5).setCellValue(100000);
+                row1.createCell(6).setCellValue(12.5);
+                row1.createCell(7).setCellValue(30);
 
                 // Empty row 2
                 sheet.createRow(2);
@@ -408,15 +403,14 @@ class TripExcelParserTest {
 
                 // Data row 4
                 Row row4 = sheet.createRow(4);
-                row4.createCell(0).setCellValue("EWB002");
-                row4.createCell(1).setCellValue("Chennai");
-                row4.createCell(2).setCellValue("Bangalore");
-                row4.createCell(3).setCellValue("Sender B");
-                row4.createCell(4).setCellValue("Receiver B");
-                row4.createCell(5).setCellValue("Quick Transport");
-                row4.createCell(6).setCellValue(200000);
-                row4.createCell(7).setCellValue(10.0);
-                row4.createCell(8).setCellValue(45);
+                row4.createCell(0).setCellValue("Chennai");
+                row4.createCell(1).setCellValue("Bangalore");
+                row4.createCell(2).setCellValue("Sender B");
+                row4.createCell(3).setCellValue("Receiver B");
+                row4.createCell(4).setCellValue("Quick Transport");
+                row4.createCell(5).setCellValue(200000);
+                row4.createCell(6).setCellValue(10.0);
+                row4.createCell(7).setCellValue(45);
 
                 workbook.write(out);
                 return out.toByteArray();
@@ -431,7 +425,7 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle empty CSV file")
         void parseCsv_EmptyFile() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -449,8 +443,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle CSV with only whitespace values")
         void parseCsv_WhitespaceValues() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "   ,   ,   ,   ,   ,   ,   ,   ,   ";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "   ,   ,   ,   ,   ,   ,   ,   ";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -468,8 +462,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle CSV with numbers containing commas")
         void parseCsv_NumbersWithCommas() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,\"1,00,000\",12.5,30";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,\"1,00,000\",12.5,30";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -487,8 +481,8 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle optional fields correctly")
         void parseCsv_OptionalFieldsMissing() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
-                    "EWB123456789,Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,,,, ";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays,distanceKm,loadType,weightKg,notes\n" +
+                    "Mumbai,Delhi,ABC Traders,XYZ Industries,Fast Logistics,100000,12.5,30,,,, ";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -509,11 +503,11 @@ class TripExcelParserTest {
         @Test
         @DisplayName("Should handle maturity days boundary values")
         void parseCsv_MaturityDaysBoundary() throws IOException {
-            String csvContent = "ewayBillNumber,pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
-                    "EWB001,Mumbai,Delhi,Sender,Receiver,Transporter,100000,12.5,1\n" +
-                    "EWB002,Mumbai,Delhi,Sender,Receiver,Transporter,100000,12.5,365\n" +
-                    "EWB003,Mumbai,Delhi,Sender,Receiver,Transporter,100000,12.5,0\n" +
-                    "EWB004,Mumbai,Delhi,Sender,Receiver,Transporter,100000,12.5,366";
+            String csvContent = "pickup,destination,sender,receiver,transporter,loanAmount,interestRate,maturityDays\n" +
+                    "Mumbai,Delhi,Sender,Receiver,Transporter,100000,12.5,1\n" +
+                    "Chennai,Bangalore,Sender,Receiver,Transporter,100000,12.5,365\n" +
+                    "Pune,Hyderabad,Sender,Receiver,Transporter,100000,12.5,0\n" +
+                    "Jaipur,Lucknow,Sender,Receiver,Transporter,100000,12.5,366";
 
             MockMultipartFile file = new MockMultipartFile(
                     "file",
@@ -524,10 +518,10 @@ class TripExcelParserTest {
 
             List<TripRequestDTO> result = tripExcelParser.parseCsv(file, response);
 
-            assertThat(result).hasSize(2); // Only EWB001 and EWB002 should be valid
+            assertThat(result).hasSize(2); // Only first two should be valid
             assertThat(result.get(0).getMaturityDays()).isEqualTo(1);
             assertThat(result.get(1).getMaturityDays()).isEqualTo(365);
-            assertThat(response.getErrors()).hasSize(2); // EWB003 and EWB004 should have errors
+            assertThat(response.getErrors()).hasSize(2); // Last two should have errors
         }
     }
 }

@@ -27,14 +27,6 @@ public class TripSpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // E-way Bill Number (partial match, case-insensitive)
-            if (StringUtils.hasText(criteria.getEwayBillNumber())) {
-                predicates.add(criteriaBuilder.like(
-                        criteriaBuilder.lower(root.get("ewayBillNumber")),
-                        "%" + criteria.getEwayBillNumber().toLowerCase() + "%"
-                ));
-            }
-
             // Pickup location (partial match, case-insensitive)
             if (StringUtils.hasText(criteria.getPickup())) {
                 predicates.add(criteriaBuilder.like(
@@ -156,7 +148,6 @@ public class TripSpecification {
             if (StringUtils.hasText(criteria.getKeyword())) {
                 String keyword = "%" + criteria.getKeyword().toLowerCase() + "%";
                 Predicate keywordPredicate = criteriaBuilder.or(
-                        criteriaBuilder.like(criteriaBuilder.lower(root.get("ewayBillNumber")), keyword),
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("pickup")), keyword),
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("destination")), keyword),
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("sender")), keyword),
@@ -167,21 +158,6 @@ public class TripSpecification {
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
-    }
-
-    /**
-     * Create specification for E-way Bill Number
-     */
-    public static Specification<Trip> hasEwayBillNumber(String ewayBillNumber) {
-        return (root, query, criteriaBuilder) -> {
-            if (!StringUtils.hasText(ewayBillNumber)) {
-                return criteriaBuilder.conjunction();
-            }
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(root.get("ewayBillNumber")),
-                    "%" + ewayBillNumber.toLowerCase() + "%"
-            );
         };
     }
 
