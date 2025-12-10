@@ -8,7 +8,7 @@ import javax.validation.constraints.Size;
 
 /**
  * DTO for uploading a document with base64 encoded data.
- * Used for all document types: EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, FINAL_INVOICE
+ * Used for all document types: EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, TRUCK_INVOICE
  */
 @Getter
 @Setter

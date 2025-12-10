@@ -71,5 +71,5 @@ public class DocumentType {
     public static final String CODE_BILTY = "BILTY";
     public static final String CODE_ADVANCE_INVOICE = "ADVANCE_INVOICE";
     public static final String CODE_POD = "POD";
-    public static final String CODE_FINAL_INVOICE = "FINAL_INVOICE";
+    public static final String CODE_TRUCK_INVOICE = "TRUCK_INVOICE";
 }
