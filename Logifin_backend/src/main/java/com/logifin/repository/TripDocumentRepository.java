@@ -42,6 +42,11 @@ public interface TripDocumentRepository extends JpaRepository<TripDocument, Long
             @Param("tripId") Long tripId, @Param("documentTypeCode") String documentTypeCode);
 
     /**
+     * Find single document by trip ID and document type ID
+     */
+    Optional<TripDocument> findByTripIdAndDocumentTypeId(Long tripId, Long documentTypeId);
+
+    /**
      * Check if a document type exists for a trip
      */
     @Query("SELECT CASE WHEN COUNT(td) > 0 THEN true ELSE false END FROM TripDocument td WHERE td.trip.id = :tripId AND td.documentType.code = :documentTypeCode")

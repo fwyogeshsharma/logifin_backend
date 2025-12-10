@@ -473,17 +473,37 @@ public class TripServiceImpl implements TripService {
                     documentDTO.getDocumentBase64().replaceFirst("^data:[^;]+;base64,", ""));
         }
 
-        TripDocument document = TripDocument.builder()
-                .trip(trip)
-                .documentType(docType)
-                .documentData(documentData)
-                .contentType(documentDTO.getContentType())
-                .fileSize(documentData != null ? (long) documentData.length : null)
-                .uploadedByUser(user)
-                .build();
+        // Check if document of same type already exists for this trip - update instead of create
+        Optional<TripDocument> existingDocument = tripDocumentRepository.findByTripIdAndDocumentTypeId(tripId, docType.getId());
+
+        TripDocument document;
+        if (existingDocument.isPresent()) {
+            // Update existing document
+            document = existingDocument.get();
+            document.setDocumentData(documentData);
+            document.setContentType(documentDTO.getContentType());
+            document.setFileSize(documentData != null ? (long) documentData.length : null);
+            document.setUploadedByUser(user);
+            if (StringUtils.hasText(documentDTO.getDocumentNumber())) {
+                document.setDocumentNumber(documentDTO.getDocumentNumber());
+            }
+            log.info("Updating existing document for trip {}, type: {}", tripId, docType.getCode());
+        } else {
+            // Create new document
+            document = TripDocument.builder()
+                    .trip(trip)
+                    .documentType(docType)
+                    .documentNumber(documentDTO.getDocumentNumber())
+                    .documentData(documentData)
+                    .contentType(documentDTO.getContentType())
+                    .fileSize(documentData != null ? (long) documentData.length : null)
+                    .uploadedByUser(user)
+                    .build();
+            log.info("Creating new document for trip {}, type: {}", tripId, docType.getCode());
+        }
 
         TripDocument savedDocument = tripDocumentRepository.save(document);
-        log.info("Document uploaded for trip {}: {}", tripId, savedDocument.getId());
+        log.info("Document saved for trip {}: {}", tripId, savedDocument.getId());
 
         return mapToDocumentMetadataDTO(savedDocument);
     }
