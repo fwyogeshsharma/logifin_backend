@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Entity representing a Trip in the logistics system.
  * Contains route details, financial terms, and cargo specifications.
- * Documents (EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, TRUCK_INVOICE) are stored in trip_documents table.
+ * Documents (EWAY_BILL, BILTY, TRUCK_INVOICE, POD, FINAL_INVOICE) are stored in trip_documents table.
  * E-way Bill Number is stored in trip_documents with document_type = EWAY_BILL.
  */
 @Entity

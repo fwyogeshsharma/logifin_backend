@@ -174,9 +174,9 @@ class DocumentTypeRepositoryTest {
         @DisplayName("Should create new document type")
         void create_Success() {
             DocumentType newType = DocumentType.builder()
-                    .code("TRUCK_INVOICE")
-                    .displayName("Truck Invoice")
-                    .description("Truck billing invoice for the trip")
+                    .code("FINAL_INVOICE")
+                    .displayName("Final Invoice")
+                    .description("Final billing invoice for the trip")
                     .isActive(true)
                     .sortOrder(4)
                     .build();
@@ -184,7 +184,7 @@ class DocumentTypeRepositoryTest {
             DocumentType saved = documentTypeRepository.save(newType);
 
             assertThat(saved.getId()).isNotNull();
-            assertThat(saved.getCode()).isEqualTo("TRUCK_INVOICE");
+            assertThat(saved.getCode()).isEqualTo("FINAL_INVOICE");
             assertThat(saved.getCreatedAt()).isNotNull();
         }
 

@@ -196,6 +196,7 @@ public class TripController {
             @Parameter(description = "Keyword search") @RequestParam(required = false) String keyword,
             @Parameter(description = "Start date (yyyy-MM-dd)") @RequestParam(required = false) String createdFrom,
             @Parameter(description = "End date (yyyy-MM-dd)") @RequestParam(required = false) String createdTo,
+            @Parameter(description = "Filter by user ID who created the trip") @RequestParam(required = false) Long createdByUserId,
             @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -213,6 +214,7 @@ public class TripController {
                 .keyword(keyword)
                 .createdFrom(createdFrom != null ? LocalDate.parse(createdFrom) : null)
                 .createdTo(createdTo != null ? LocalDate.parse(createdTo) : null)
+                .createdByUserId(createdByUserId)
                 .build();
 
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();

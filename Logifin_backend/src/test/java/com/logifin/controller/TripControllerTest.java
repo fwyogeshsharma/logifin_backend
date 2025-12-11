@@ -147,4 +147,62 @@ class TripControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         verify(tripService).deleteTrip(1L);
     }
+
+    @Test
+    @DisplayName("Should get all trips with createdByUserId filter")
+    void getAllTrips_WithCreatedByUserIdFilter() {
+        PagedResponse<TripResponseDTO> pagedResponse = PagedResponse.<TripResponseDTO>builder()
+                .content(Collections.singletonList(testTripResponseDTO))
+                .totalElements(1L)
+                .totalPages(1)
+                .page(0)
+                .size(10)
+                .build();
+
+        when(tripService.searchTrips(any(TripSearchCriteria.class), any())).thenReturn(pagedResponse);
+
+        ResponseEntity<ApiResponse<PagedResponse<TripResponseDTO>>> response = tripController.getAllTrips(
+                null, null, null, null, null, null, null, null, null, null,
+                1L, // createdByUserId
+                0, 10, "createdAt", "desc"
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData()).isNotNull();
+        assertThat(response.getBody().getData().getContent()).hasSize(1);
+
+        verify(tripService).searchTrips(argThat(criteria ->
+            criteria.getCreatedByUserId() != null && criteria.getCreatedByUserId().equals(1L)
+        ), any());
+    }
+
+    @Test
+    @DisplayName("Should get all trips without createdByUserId filter")
+    void getAllTrips_WithoutCreatedByUserIdFilter() {
+        PagedResponse<TripResponseDTO> pagedResponse = PagedResponse.<TripResponseDTO>builder()
+                .content(Collections.emptyList())
+                .totalElements(0L)
+                .totalPages(0)
+                .page(0)
+                .size(10)
+                .build();
+
+        when(tripService.searchTrips(any(TripSearchCriteria.class), any())).thenReturn(pagedResponse);
+
+        ResponseEntity<ApiResponse<PagedResponse<TripResponseDTO>>> response = tripController.getAllTrips(
+                null, null, null, null, null, null, null, null, null, null,
+                null, // createdByUserId is null
+                0, 10, "createdAt", "desc"
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+
+        verify(tripService).searchTrips(argThat(criteria ->
+            criteria.getCreatedByUserId() == null
+        ), any());
+    }
 }

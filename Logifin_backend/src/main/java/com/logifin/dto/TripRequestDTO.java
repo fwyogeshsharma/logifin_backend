@@ -97,6 +97,6 @@ public class TripRequestDTO {
     // ==================== Documents (All Optional) ====================
 
     @Valid
-    @Schema(description = "List of documents to attach (EWAY_BILL, BILTY, ADVANCE_INVOICE, POD, TRUCK_INVOICE)")
+    @Schema(description = "List of documents to attach (EWAY_BILL, BILTY, TRUCK_INVOICE, POD, FINAL_INVOICE)")
     private List<DocumentUploadDTO> documents;
 }
