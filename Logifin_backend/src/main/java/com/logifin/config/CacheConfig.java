@@ -48,6 +48,17 @@ public class CacheConfig extends CachingConfigurerSupport {
     public static final String CACHE_COMPANIES = "companies";
     public static final String CACHE_COMPANY_BY_ID = "companyById";
 
+    // Contract Module Cache Names
+    public static final String CACHE_CONTRACTS = "contracts";
+    public static final String CACHE_CONTRACT_BY_ID = "contractById";
+    public static final String CACHE_CONTRACT_BY_NUMBER = "contractByNumber";
+    public static final String CACHE_LOAN_STAGES = "loanStages";
+    public static final String CACHE_LOAN_STAGE_BY_ID = "loanStageById";
+    public static final String CACHE_LOAN_STAGE_BY_NAME = "loanStageByName";
+    public static final String CACHE_CONTRACT_TYPES = "contractTypes";
+    public static final String CACHE_CONTRACT_TYPE_BY_ID = "contractTypeById";
+    public static final String CACHE_CONTRACT_TYPE_BY_NAME = "contractTypeByName";
+
     // Default TTL values (in minutes)
     @Value("${cache.ttl.default:60}")
     private long defaultTtlMinutes;
@@ -66,6 +77,15 @@ public class CacheConfig extends CachingConfigurerSupport {
 
     @Value("${cache.ttl.companies:30}")
     private long companiesTtlMinutes;
+
+    @Value("${cache.ttl.contracts:30}")
+    private long contractsTtlMinutes;
+
+    @Value("${cache.ttl.loan-stages:120}")
+    private long loanStagesTtlMinutes;
+
+    @Value("${cache.ttl.contract-types:120}")
+    private long contractTypesTtlMinutes;
 
     /**
      * Primary Redis Cache Manager with custom TTL per cache.
@@ -103,6 +123,21 @@ public class CacheConfig extends CachingConfigurerSupport {
         // Company caches - moderate TTL
         cacheConfigurations.put(CACHE_COMPANIES, defaultConfig.entryTtl(Duration.ofMinutes(companiesTtlMinutes)));
         cacheConfigurations.put(CACHE_COMPANY_BY_ID, defaultConfig.entryTtl(Duration.ofMinutes(companiesTtlMinutes)));
+
+        // Contract caches - moderate TTL
+        cacheConfigurations.put(CACHE_CONTRACTS, defaultConfig.entryTtl(Duration.ofMinutes(contractsTtlMinutes)));
+        cacheConfigurations.put(CACHE_CONTRACT_BY_ID, defaultConfig.entryTtl(Duration.ofMinutes(contractsTtlMinutes)));
+        cacheConfigurations.put(CACHE_CONTRACT_BY_NUMBER, defaultConfig.entryTtl(Duration.ofMinutes(contractsTtlMinutes)));
+
+        // Loan Stage caches - longer TTL (reference data)
+        cacheConfigurations.put(CACHE_LOAN_STAGES, defaultConfig.entryTtl(Duration.ofMinutes(loanStagesTtlMinutes)));
+        cacheConfigurations.put(CACHE_LOAN_STAGE_BY_ID, defaultConfig.entryTtl(Duration.ofMinutes(loanStagesTtlMinutes)));
+        cacheConfigurations.put(CACHE_LOAN_STAGE_BY_NAME, defaultConfig.entryTtl(Duration.ofMinutes(loanStagesTtlMinutes)));
+
+        // Contract Type caches - longer TTL (reference data)
+        cacheConfigurations.put(CACHE_CONTRACT_TYPES, defaultConfig.entryTtl(Duration.ofMinutes(contractTypesTtlMinutes)));
+        cacheConfigurations.put(CACHE_CONTRACT_TYPE_BY_ID, defaultConfig.entryTtl(Duration.ofMinutes(contractTypesTtlMinutes)));
+        cacheConfigurations.put(CACHE_CONTRACT_TYPE_BY_NAME, defaultConfig.entryTtl(Duration.ofMinutes(contractTypesTtlMinutes)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

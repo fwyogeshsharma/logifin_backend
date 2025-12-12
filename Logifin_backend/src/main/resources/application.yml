@@ -111,6 +111,9 @@ cache:
     roles: 120       # Role cache TTL (reference data)
     user-details: 15 # User details TTL (security sensitive)
     search: 5        # Search results TTL
+    contracts: 30    # Contracts cache TTL
+    loan-stages: 120 # Loan stages cache TTL (reference data)
+    contract-types: 120 # Contract types cache TTL (reference data)
 
 logging:
   level:
