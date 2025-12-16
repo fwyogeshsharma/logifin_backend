@@ -33,7 +33,9 @@ public class UserController {
 
     @Operation(
             summary = "Create User",
-            description = "Create a new user. Requires ADMIN or SUPER_ADMIN role."
+            description = "Create a new user with an automatically generated wallet account. " +
+                    "The wallet is created with INR as the default currency and ACTIVE status. " +
+                    "Requires ADMIN or SUPER_ADMIN role."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

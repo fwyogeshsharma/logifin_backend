@@ -6,11 +6,13 @@ import com.logifin.dto.UserDTO;
 import com.logifin.entity.Company;
 import com.logifin.entity.Role;
 import com.logifin.entity.User;
+import com.logifin.entity.Wallet;
 import com.logifin.exception.DuplicateResourceException;
 import com.logifin.exception.ResourceNotFoundException;
 import com.logifin.repository.CompanyRepository;
 import com.logifin.repository.RoleRepository;
 import com.logifin.repository.UserRepository;
+import com.logifin.repository.WalletRepository;
 import com.logifin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WalletRepository walletRepository;
 
     private static final String DEFAULT_ROLE = "ROLE_CSR";
 
@@ -72,7 +75,31 @@ public class UserServiceImpl implements UserService {
         user.setRole(role);
         user.setCompany(company);
         User savedUser = userRepository.save(user);
+
+        // Create default wallet for the user
+        createDefaultWallet(savedUser.getId());
+
         return mapToDTO(savedUser);
+    }
+
+    /**
+     * Creates a default wallet for a user with INR currency
+     */
+    private void createDefaultWallet(Long userId) {
+        try {
+            if (!walletRepository.existsByUserId(userId)) {
+                Wallet wallet = Wallet.builder()
+                        .userId(userId)
+                        .currencyCode("INR")
+                        .status("ACTIVE")
+                        .build();
+                walletRepository.save(wallet);
+                log.info("Created default wallet for user: {}", userId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to create wallet for user: {}", userId, e);
+            // Don't throw exception - wallet creation failure shouldn't fail user creation
+        }
     }
 
     @Override

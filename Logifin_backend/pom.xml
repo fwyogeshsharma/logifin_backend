@@ -168,6 +168,13 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.3</version>
         </dependency>
+
+        <!-- Hibernate Types for JSONB support -->
+        <dependency>
+            <groupId>com.vladmihalcea</groupId>
+            <artifactId>hibernate-types-52</artifactId>
+            <version>2.16.3</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -3,10 +3,13 @@ package com.logifin.service;
 import com.logifin.dto.UserDTO;
 import com.logifin.entity.Role;
 import com.logifin.entity.User;
+import com.logifin.entity.Wallet;
 import com.logifin.exception.DuplicateResourceException;
 import com.logifin.exception.ResourceNotFoundException;
+import com.logifin.repository.CompanyRepository;
 import com.logifin.repository.RoleRepository;
 import com.logifin.repository.UserRepository;
+import com.logifin.repository.WalletRepository;
 import com.logifin.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +44,13 @@ class UserServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
+    private CompanyRepository companyRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private WalletRepository walletRepository;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -92,12 +102,47 @@ class UserServiceTest {
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
             when(roleRepository.findByRoleName("ROLE_CSR")).thenReturn(Optional.of(testRole));
             when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(false);
+            when(walletRepository.save(any(Wallet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             UserDTO result = userService.createUser(testUserDTO);
 
             assertThat(result).isNotNull();
             assertThat(result.getEmail()).isEqualTo("john.doe@test.com");
             verify(userRepository).save(any(User.class));
+            verify(walletRepository).existsByUserId(1L);
+            verify(walletRepository).save(any(Wallet.class));
+        }
+
+        @Test
+        @DisplayName("Should create user and wallet with INR currency")
+        void shouldCreateUserAndWalletWithINRCurrency() {
+            when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(roleRepository.findByRoleName("ROLE_CSR")).thenReturn(Optional.of(testRole));
+            when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(false);
+
+            userService.createUser(testUserDTO);
+
+            verify(walletRepository).save(argThat(wallet ->
+                    wallet.getUserId().equals(1L) &&
+                    wallet.getCurrencyCode().equals("INR") &&
+                    wallet.getStatus().equals("ACTIVE")
+            ));
+        }
+
+        @Test
+        @DisplayName("Should not create duplicate wallet if already exists")
+        void shouldNotCreateDuplicateWallet() {
+            when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(roleRepository.findByRoleName("ROLE_CSR")).thenReturn(Optional.of(testRole));
+            when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(true);
+
+            userService.createUser(testUserDTO);
+
+            verify(walletRepository).existsByUserId(1L);
+            verify(walletRepository, never()).save(any(Wallet.class));
         }
 
         @Test
