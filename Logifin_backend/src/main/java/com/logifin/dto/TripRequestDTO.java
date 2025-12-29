@@ -35,20 +35,18 @@ public class TripRequestDTO {
 
     // ==================== Parties ====================
 
-    @NotBlank(message = "Sender name is required")
-    @Size(max = 150, message = "Sender name must not exceed 150 characters")
-    @Schema(description = "Name of the sender", example = "ABC Traders", required = true)
-    private String sender;
+    @NotNull(message = "Sender user ID is required")
+    @Schema(description = "User ID of the sender", example = "1", required = true)
+    private Long senderId;
 
     @NotBlank(message = "Receiver name is required")
     @Size(max = 150, message = "Receiver name must not exceed 150 characters")
     @Schema(description = "Name of the receiver", example = "XYZ Industries", required = true)
     private String receiver;
 
-    @NotBlank(message = "Transporter name is required")
-    @Size(max = 150, message = "Transporter name must not exceed 150 characters")
-    @Schema(description = "Name of the transporter", example = "Fast Logistics Pvt Ltd", required = true)
-    private String transporter;
+    @NotNull(message = "Transporter user ID is required")
+    @Schema(description = "User ID of the transporter", example = "2", required = true)
+    private Long transporterId;
 
     // ==================== Financial Terms ====================
 

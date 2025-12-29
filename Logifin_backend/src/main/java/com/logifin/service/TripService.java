@@ -68,6 +68,15 @@ public interface TripService {
      */
     PagedResponse<TripResponseDTO> searchByKeyword(String keyword, Pageable pageable);
 
+    /**
+     * Finance a trip by linking it to a lender's contract
+     * @param tripId Trip ID to finance
+     * @param request Finance request containing contract ID
+     * @param lenderId Lender user ID
+     * @return Financed trip response
+     */
+    TripResponseDTO financeTrip(Long tripId, TripFinanceRequestDTO request, Long lenderId);
+
     // ==================== Bulk Operations ====================
 
     /**

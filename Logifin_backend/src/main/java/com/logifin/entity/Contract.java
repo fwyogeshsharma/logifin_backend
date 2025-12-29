@@ -68,6 +68,21 @@ public class Contract extends BaseEntity {
     @Column(name = "penalty_ratio", nullable = false, precision = 5, scale = 2)
     private BigDecimal penaltyRatio;
 
+    @NotNull(message = "Interest rate is required")
+    @DecimalMin(value = "0.00", message = "Interest rate must be at least 0")
+    @DecimalMax(value = "100.00", message = "Interest rate must not exceed 100")
+    @Digits(integer = 3, fraction = 2, message = "Interest rate must have at most 3 integer digits and 2 decimal places")
+    @Column(name = "interest_rate", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal interestRate = BigDecimal.ZERO;
+
+    @NotNull(message = "Maturity days is required")
+    @Min(value = 1, message = "Maturity days must be at least 1")
+    @Max(value = 365, message = "Maturity days must not exceed 365")
+    @Column(name = "maturity_days", nullable = false)
+    @Builder.Default
+    private Integer maturityDays = 30;
+
     // Contract Metadata
     @Size(max = 50, message = "Contract number must not exceed 50 characters")
     @Column(name = "contract_number", unique = true, length = 50)

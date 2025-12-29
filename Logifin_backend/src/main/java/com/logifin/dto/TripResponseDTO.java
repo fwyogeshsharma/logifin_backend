@@ -33,14 +33,20 @@ public class TripResponseDTO {
 
     // ==================== Parties ====================
 
-    @Schema(description = "Name of the sender", example = "ABC Traders")
-    private String sender;
+    @Schema(description = "Sender user ID", example = "1")
+    private Long senderId;
+
+    @Schema(description = "Name of the sender", example = "John Doe")
+    private String senderName;
 
     @Schema(description = "Name of the receiver", example = "XYZ Industries")
     private String receiver;
 
-    @Schema(description = "Name of the transporter", example = "Fast Logistics Pvt Ltd")
-    private String transporter;
+    @Schema(description = "Transporter user ID", example = "2")
+    private Long transporterId;
+
+    @Schema(description = "Name of the transporter", example = "Jane Smith")
+    private String transporterName;
 
     // ==================== Financial Terms ====================
 

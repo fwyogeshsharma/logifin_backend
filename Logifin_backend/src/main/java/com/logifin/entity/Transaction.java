@@ -9,6 +9,7 @@ import org.hibernate.annotations.TypeDef;
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -62,7 +63,45 @@ public class Transaction {
     @Column(name = "actual_transfer_date")
     private LocalDateTime actualTransferDate;
 
+    @Column(name = "trip_id")
+    private Long tripId;
+
+    @Column(name = "contract_id")
+    private Long contractId;
+
+    @Column(name = "transaction_purpose", length = 50)
+    private String transactionPurpose;
+
+    @Column(name = "gross_amount", precision = 19, scale = 4)
+    private BigDecimal grossAmount;
+
+    @Column(name = "platform_fee_amount", precision = 19, scale = 4)
+    private BigDecimal platformFeeAmount;
+
+    @Column(name = "net_amount", precision = 19, scale = 4)
+    private BigDecimal netAmount;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id", insertable = false, updatable = false)
     private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
+    private Trip trip;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id", insertable = false, updatable = false)
+    private Contract contract;
+
+    /**
+     * Transaction purpose enumeration
+     */
+    public enum TransactionPurpose {
+        FINANCING,
+        REPAYMENT,
+        PORTAL_FEE,
+        INTEREST_PAYMENT,
+        PRINCIPAL_PAYMENT,
+        OTHER
+    }
 }

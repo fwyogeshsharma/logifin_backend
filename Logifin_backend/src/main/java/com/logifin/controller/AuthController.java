@@ -51,7 +51,11 @@ public class AuthController {
 
     @Operation(
             summary = "User Registration",
-            description = "Register a new user. User is created without a role. Role must be assigned separately using /user/set-role API."
+            description = "Register a new user with an automatically generated wallet account. " +
+                    "The wallet is created with INR as the default currency and ACTIVE status. " +
+                    "If no role is provided, ROLE_USER is assigned by default. " +
+                    "If this is the first user for a company, they are automatically assigned as company admin. " +
+                    "Returns JWT token upon successful registration."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

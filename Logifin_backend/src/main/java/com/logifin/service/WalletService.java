@@ -21,6 +21,18 @@ public interface WalletService {
 
     TransactionResponseDTO processTransfer(TransferRequest request, Long enteredByUserId);
 
+    /**
+     * Process financing transfer from contract wallet to transporter wallet
+     * Automatically deducts portal service charge
+     */
+    TransactionResponseDTO processFinancingTransfer(FinancingTransferRequest request, Long enteredByUserId);
+
+    /**
+     * Process repayment transfer from shipper/contract wallet to lender wallet
+     * Calculates and tracks interest payments
+     */
+    TransactionResponseDTO processRepaymentTransfer(RepaymentTransferRequest request, Long enteredByUserId);
+
     WalletStatementDTO getWalletStatement(Long userId, LocalDateTime fromDate, LocalDateTime toDate);
 
     Page<TransactionEntryDTO> getWalletHistory(Long userId, Pageable pageable);

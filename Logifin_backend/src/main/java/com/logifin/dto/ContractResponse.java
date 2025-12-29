@@ -47,6 +47,12 @@ public class ContractResponse {
     @Schema(description = "Penalty ratio percentage", example = "5.00")
     private BigDecimal penaltyRatio;
 
+    @Schema(description = "Annual interest rate percentage", example = "12.50")
+    private BigDecimal interestRate;
+
+    @Schema(description = "Number of days until maturity", example = "30")
+    private Integer maturityDays;
+
     // ==================== Contract Metadata ====================
 
     @Schema(description = "Unique contract reference number", example = "CONT-2024-001")

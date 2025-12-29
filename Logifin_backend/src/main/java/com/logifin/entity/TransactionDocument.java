@@ -38,7 +38,6 @@ public class TransactionDocument extends BaseEntity {
     private String mimeType;
 
     @NotNull(message = "File data is required")
-    @Lob
     @Column(name = "file_data", nullable = false, columnDefinition = "bytea")
     private byte[] fileData;
 

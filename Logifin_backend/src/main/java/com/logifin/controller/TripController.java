@@ -384,6 +384,42 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.success("Document deleted successfully", null));
     }
 
+    // ==================== Trip Financing (For Lenders) ====================
+
+    @Operation(
+            summary = "Finance a Trip",
+            description = "Lender selects and finances a trip by linking their contract. " +
+                    "The trip's interest rate and maturity days will be set from the contract. " +
+                    "Requires LENDER role."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Trip financed successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request - trip already financed, not ACTIVE, or contract invalid",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Trip or Contract not found",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Access denied - Requires LENDER role",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/trip/{tripId}/finance")
+    @PreAuthorize("hasRole('LENDER')")
+    public ResponseEntity<ApiResponse<TripResponseDTO>> financeTrip(
+            @Parameter(description = "Trip ID to finance") @PathVariable Long tripId,
+            @Valid @RequestBody TripFinanceRequestDTO request,
+            @CurrentUser UserPrincipal currentUser) {
+        TripResponseDTO financedTrip = tripService.financeTrip(tripId, request, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success("Trip financed successfully", financedTrip));
+    }
+
     // ==================== Helper Methods ====================
 
     private TripSearchCriteria buildExportCriteria(String transporter,

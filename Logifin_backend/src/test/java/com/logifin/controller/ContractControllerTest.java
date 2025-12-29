@@ -126,7 +126,7 @@ class ContractControllerTest {
         @DisplayName("Should create contract successfully")
         @WithMockUser(roles = "TRUST_ACCOUNT")
         void shouldCreateContractSuccessfully() throws Exception {
-            when(contractService.createContract(any(CreateContractRequest.class)))
+            when(contractService.createContract(any(CreateContractRequest.class), anyLong()))
                     .thenReturn(testContractResponse);
 
             mockMvc.perform(post("/api/v1/contracts")
@@ -139,7 +139,7 @@ class ContractControllerTest {
                     .andExpect(jsonPath("$.data.contractNumber").value("CONT-2024-001"))
                     .andExpect(jsonPath("$.data.loanPercent").value(75.50));
 
-            verify(contractService).createContract(any(CreateContractRequest.class));
+            verify(contractService).createContract(any(CreateContractRequest.class), anyLong());
         }
 
         @Test
@@ -152,7 +152,7 @@ class ContractControllerTest {
                             .content(objectMapper.writeValueAsString(createRequest)))
                     .andExpect(status().isForbidden());
 
-            verify(contractService, never()).createContract(any(CreateContractRequest.class));
+            verify(contractService, never()).createContract(any(CreateContractRequest.class), anyLong());
         }
     }
 

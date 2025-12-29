@@ -100,6 +100,8 @@ class ContractServiceTest {
                 .loanPercent(new BigDecimal("75.50"))
                 .ltv(new BigDecimal("80.00"))
                 .penaltyRatio(new BigDecimal("5.00"))
+                .interestRate(new BigDecimal("12.50"))
+                .maturityDays(30)
                 .contractNumber("CONT-2024-001")
                 .expiryDate(LocalDate.now().plusYears(1))
                 .contractType(testContractType)
@@ -119,6 +121,8 @@ class ContractServiceTest {
                 .loanPercent(new BigDecimal("75.50"))
                 .ltv(new BigDecimal("80.00"))
                 .penaltyRatio(new BigDecimal("5.00"))
+                .interestRate(new BigDecimal("12.50"))
+                .maturityDays(30)
                 .contractNumber("CONT-2024-001")
                 .expiryDate(LocalDate.now().plusYears(1))
                 .contractTypeId(1L)
@@ -149,7 +153,7 @@ class ContractServiceTest {
             when(loanStageRepository.findById(anyLong())).thenReturn(Optional.of(testLoanStage));
             when(contractRepository.save(any(Contract.class))).thenReturn(testContract);
 
-            ContractResponse result = contractService.createContract(createRequest);
+            ContractResponse result = contractService.createContract(createRequest, 1L);
 
             assertThat(result).isNotNull();
             assertThat(result.getContractNumber()).isEqualTo("CONT-2024-001");
@@ -162,7 +166,7 @@ class ContractServiceTest {
         void shouldThrowExceptionWhenContractNumberExists() {
             when(contractRepository.existsByContractNumber(anyString())).thenReturn(true);
 
-            assertThatThrownBy(() -> contractService.createContract(createRequest))
+            assertThatThrownBy(() -> contractService.createContract(createRequest, 1L))
                     .isInstanceOf(DuplicateResourceException.class)
                     .hasMessageContaining("Contract");
 
@@ -175,7 +179,7 @@ class ContractServiceTest {
             when(contractRepository.existsByContractNumber(anyString())).thenReturn(false);
             when(contractTypeRepository.findById(anyLong())).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.createContract(createRequest))
+            assertThatThrownBy(() -> contractService.createContract(createRequest, 1L))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("ContractType");
 
@@ -189,7 +193,7 @@ class ContractServiceTest {
             when(contractTypeRepository.findById(anyLong())).thenReturn(Optional.of(testContractType));
             when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.createContract(createRequest))
+            assertThatThrownBy(() -> contractService.createContract(createRequest, 1L))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("User");
 

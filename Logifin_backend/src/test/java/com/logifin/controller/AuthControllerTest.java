@@ -50,7 +50,7 @@ class AuthControllerTest {
                 .email("john.doe@test.com")
                 .firstName("John")
                 .lastName("Doe")
-                .role("ROLE_CSR")
+                .role("ROLE_USER")
                 .build();
     }
 

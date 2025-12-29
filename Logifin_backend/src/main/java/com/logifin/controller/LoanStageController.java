@@ -34,7 +34,7 @@ public class LoanStageController {
 
     @Operation(
             summary = "Create Loan Stage",
-            description = "Create a new loan stage. Requires SUPER_ADMIN role."
+            description = "Create a new loan stage. Requires ADMIN or SUPER_ADMIN role."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -51,7 +51,7 @@ public class LoanStageController {
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     })
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<LoanStageDTO>> createLoanStage(@Valid @RequestBody LoanStageDTO loanStageDTO) {
         LoanStageDTO createdLoanStage = loanStageService.createLoanStage(loanStageDTO);
         return ResponseEntity
@@ -109,10 +109,10 @@ public class LoanStageController {
 
     @Operation(
             summary = "Update Loan Stage",
-            description = "Update an existing loan stage. Requires SUPER_ADMIN role."
+            description = "Update an existing loan stage. Requires ADMIN or SUPER_ADMIN role."
     )
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<LoanStageDTO>> updateLoanStage(
             @Parameter(description = "Loan Stage ID") @PathVariable Long id,
             @Valid @RequestBody LoanStageDTO loanStageDTO) {

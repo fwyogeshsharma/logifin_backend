@@ -4,7 +4,9 @@ import com.logifin.dto.*;
 import com.logifin.entity.*;
 import com.logifin.exception.*;
 import com.logifin.repository.*;
+import com.logifin.service.ConfigurationService;
 import com.logifin.service.WalletService;
+import com.logifin.util.FinancialCalculationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,10 @@ public class WalletServiceImpl implements WalletService {
     private final ManualTransferRequestRepository manualRequestRepository;
     private final TransactionDocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final ConfigurationService configurationService;
+    private final TripFinancialRepository tripFinancialRepository;
+    private final TripRepository tripRepository;
+    private final ContractRepository contractRepository;
 
     @Override
     @Transactional
@@ -218,11 +224,33 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public TransactionResponseDTO processTransfer(TransferRequest request, Long enteredByUserId) {
-        log.info("Processing transfer from user: {} to user: {}, amount: {}",
-                request.getFromUserId(), request.getToUserId(), request.getAmount());
+        log.info("Processing transfer from user: {} to user: {}, amount: {}, tripId: {}",
+                request.getFromUserId(), request.getToUserId(), request.getAmount(), request.getTripId());
 
         if (request.getFromUserId().equals(request.getToUserId())) {
             throw new InvalidTransactionException("Cannot transfer to the same wallet");
+        }
+
+        // Handle trip-based transfer with automatic contract discovery
+        Long tripId = null;
+        Long contractId = null;
+        String tripInfo = "";
+
+        if (request.getTripId() != null) {
+            Trip trip = tripRepository.findById(request.getTripId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Trip", "id", request.getTripId()));
+
+            if (trip.getContract() == null) {
+                throw new InvalidTransactionException(
+                        "Trip #" + request.getTripId() + " does not have a contract assigned. " +
+                        "Please ensure the transporter has accepted a lender's financing proposal for this trip.");
+            }
+
+            tripId = trip.getId();
+            contractId = trip.getContract().getId();
+            tripInfo = " for Trip #" + tripId + " (Contract #" + contractId + ")";
+
+            log.info("Transfer linked to Trip #{} and Contract #{}", tripId, contractId);
         }
 
         Wallet fromWallet = walletRepository.findByUserIdWithLock(request.getFromUserId())
@@ -245,7 +273,7 @@ public class WalletServiceImpl implements WalletService {
 
         BigDecimal fromNewBalance = fromBalance.subtract(request.getAmount());
         String description = "Transfer of " + request.getAmount() + " " + fromWallet.getCurrencyCode() +
-                " from user " + request.getFromUserId() + " to user " + request.getToUserId();
+                " from user " + request.getFromUserId() + " to user " + request.getToUserId() + tripInfo;
 
         // Add borrowing indicator if sender's balance goes negative
         if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
@@ -256,6 +284,8 @@ public class WalletServiceImpl implements WalletService {
                 .transactionType("TRANSFER")
                 .status("COMPLETED")
                 .description(description)
+                .tripId(tripId)
+                .contractId(contractId)
                 .createdByUserId(enteredByUserId)
                 .createdAt(LocalDateTime.now())
                 .completedAt(LocalDateTime.now())
@@ -401,6 +431,316 @@ public class WalletServiceImpl implements WalletService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public TransactionResponseDTO processFinancingTransfer(FinancingTransferRequest request, Long enteredByUserId) {
+        log.info("Processing financing transfer for contract: {}, trip: {}, amount: {}",
+                request.getContractId(), request.getTripId(), request.getAmount());
+
+        if (request.getFromUserId().equals(request.getToUserId())) {
+            throw new InvalidTransactionException("Cannot transfer to the same wallet");
+        }
+
+        Wallet fromWallet = walletRepository.findByUserIdWithLock(request.getFromUserId())
+                .orElseThrow(() -> new WalletNotFoundException("Contract wallet not found for user: " + request.getFromUserId()));
+
+        Wallet toWallet = walletRepository.findByUserIdWithLock(request.getToUserId())
+                .orElseThrow(() -> new WalletNotFoundException("Transporter wallet not found for user: " + request.getToUserId()));
+
+        validateWalletStatus(fromWallet);
+        validateWalletStatus(toWallet);
+
+        if (!fromWallet.getCurrencyCode().equals(toWallet.getCurrencyCode())) {
+            throw new InvalidTransactionException("Currency mismatch between wallets");
+        }
+
+        // Validate trip and contract existence
+        Trip trip = tripRepository.findById(request.getTripId())
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found with ID: " + request.getTripId()));
+
+        Contract contract = contractRepository.findById(request.getContractId())
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + request.getContractId()));
+
+        // Check if trip has already been financed
+        if (tripFinancialRepository.existsByTripId(request.getTripId())) {
+            throw new InvalidTransactionException("Trip has already been financed: " + request.getTripId());
+        }
+
+        // Get portal service charge percentage from configuration
+        BigDecimal serviceChargePercentage = configurationService.getPortalServiceChargePercentage();
+
+        // IMPORTANT: Store the ORIGINAL amount for interest calculation
+        BigDecimal originalPrincipalAmount = request.getAmount(); // e.g., 500
+
+        // Calculate platform fee and net amount
+        BigDecimal platformFee = FinancialCalculationUtil.calculatePortalServiceCharge(originalPrincipalAmount, serviceChargePercentage); // e.g., 2.5
+        BigDecimal netAmountToTransporter = originalPrincipalAmount.subtract(platformFee); // e.g., 497.5
+
+        // Get super admin wallet for platform fee
+        User superAdmin = userRepository.findFirstSuperAdmin()
+                .orElseThrow(() -> new ResourceNotFoundException("Super Admin user not found"));
+
+        Wallet superAdminWallet = walletRepository.findByUserIdWithLock(superAdmin.getId())
+                .orElseThrow(() -> new WalletNotFoundException("Super Admin wallet not found"));
+
+        validateWalletStatus(superAdminWallet);
+
+        BigDecimal fromBalance = getCurrentBalance(fromWallet.getId());
+        BigDecimal fromNewBalance = fromBalance.subtract(originalPrincipalAmount); // Debit full amount from trust account
+
+        String description = String.format("Financing transfer for trip %d (Contract: %d) - Original: %s, Platform fee: %s (%s%%) to Super Admin, Net to transporter: %s %s. Interest will be calculated on original amount of %s",
+                request.getTripId(), request.getContractId(),
+                originalPrincipalAmount, platformFee, serviceChargePercentage, netAmountToTransporter, fromWallet.getCurrencyCode(), originalPrincipalAmount);
+
+        Transaction transaction = Transaction.builder()
+                .transactionType("TRANSFER")
+                .status("COMPLETED")
+                .description(description)
+                .tripId(request.getTripId())
+                .contractId(request.getContractId())
+                .transactionPurpose("FINANCING")
+                .grossAmount(originalPrincipalAmount)           // 500
+                .platformFeeAmount(platformFee)                 // 2.5
+                .netAmount(netAmountToTransporter)              // 497.5
+                .createdByUserId(enteredByUserId)
+                .createdAt(LocalDateTime.now())
+                .completedAt(LocalDateTime.now())
+                .actualTransferDate(request.getActualTransferDate())
+                .build();
+
+        transaction = transactionRepository.save(transaction);
+
+        // Entry 1: Debit from trust account (FULL ORIGINAL AMOUNT - 500)
+        TransactionEntry debitEntry = TransactionEntry.builder()
+                .transactionId(transaction.getTransactionId())
+                .walletId(fromWallet.getId())
+                .entryType("DEBIT")
+                .amount(originalPrincipalAmount)  // 500
+                .balanceAfter(fromNewBalance)
+                .entrySequence((short) 1)
+                .build();
+
+        debitEntry = entryRepository.save(debitEntry);
+
+        // Entry 2: Credit to transporter wallet (NET AMOUNT after platform fee - 497.5)
+        BigDecimal toBalance = getCurrentBalance(toWallet.getId());
+        BigDecimal toNewBalance = toBalance.add(netAmountToTransporter);
+
+        TransactionEntry creditEntry = TransactionEntry.builder()
+                .transactionId(transaction.getTransactionId())
+                .walletId(toWallet.getId())
+                .entryType("CREDIT")
+                .amount(netAmountToTransporter)  // 497.5
+                .balanceAfter(toNewBalance)
+                .entrySequence((short) 2)
+                .build();
+
+        creditEntry = entryRepository.save(creditEntry);
+
+        // Entry 3: Credit platform fee to super admin wallet (2.5)
+        BigDecimal superAdminBalance = getCurrentBalance(superAdminWallet.getId());
+        BigDecimal superAdminNewBalance = superAdminBalance.add(platformFee);
+
+        TransactionEntry platformFeeEntry = TransactionEntry.builder()
+                .transactionId(transaction.getTransactionId())
+                .walletId(superAdminWallet.getId())
+                .entryType("CREDIT")
+                .amount(platformFee)  // 2.5
+                .balanceAfter(superAdminNewBalance)
+                .entrySequence((short) 3)
+                .build();
+
+        platformFeeEntry = entryRepository.save(platformFeeEntry);
+
+        // Create TripFinancial record to track original amount for interest calculation
+        TripFinancial tripFinancial = TripFinancial.builder()
+                .tripId(request.getTripId())
+                .contractId(request.getContractId())
+                .financingTransactionId(transaction.getTransactionId())
+                .originalPrincipalAmount(originalPrincipalAmount)  // 500 - for interest calculation
+                .platformFeeAmount(platformFee)                     // 2.5
+                .netAmountToTransporter(netAmountToTransporter)     // 497.5
+                .interestRate(trip.getInterestRate())
+                .financingDate(LocalDateTime.now())
+                .status("FINANCED")
+                .build();
+
+        tripFinancialRepository.save(tripFinancial);
+
+        log.info("TripFinancial record created: Original amount {} for interest calculation, Net amount {} to transporter",
+                originalPrincipalAmount, netAmountToTransporter);
+
+        ManualTransferRequest manualRequest = ManualTransferRequest.builder()
+                .transactionId(transaction.getTransactionId())
+                .requestType("TRANSFER")
+                .fromUserId(request.getFromUserId())
+                .toUserId(request.getToUserId())
+                .amount(request.getAmount())
+                .paymentMethod(request.getPaymentMethod())
+                .referenceNumber(request.getReferenceNumber())
+                .remarks(request.getRemarks() != null ? request.getRemarks() :
+                        String.format("Financing for trip %d, Service charge: %s", request.getTripId(), platformFee))
+                .enteredByUserId(enteredByUserId)
+                .enteredAt(LocalDateTime.now())
+                .build();
+
+        manualRequest = manualRequestRepository.save(manualRequest);
+
+        if (request.getProofImageBase64() != null && !request.getProofImageBase64().isEmpty()) {
+            saveDocument(transaction.getTransactionId(), request.getProofImageBase64(),
+                    request.getProofImageFileName(), request.getProofImageMimeType());
+        }
+
+        log.info("Financing transfer processed successfully. Transaction ID: {}, Service charge: {} credited to Super Admin",
+                transaction.getTransactionId(), platformFee);
+
+        return mapToTransactionResponseDTO(transaction, Arrays.asList(debitEntry, creditEntry, platformFeeEntry), manualRequest);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public TransactionResponseDTO processRepaymentTransfer(RepaymentTransferRequest request, Long enteredByUserId) {
+        log.info("Processing repayment transfer for contract: {}, trip: {}, interest: {}",
+                request.getContractId(), request.getTripId(), request.getInterestAmount());
+
+        if (request.getFromUserId().equals(request.getToUserId())) {
+            throw new InvalidTransactionException("Cannot transfer to the same wallet");
+        }
+
+        // Get the TripFinancial record to retrieve original principal amount
+        TripFinancial tripFinancial = tripFinancialRepository.findByTripId(request.getTripId())
+                .orElseThrow(() -> new ResourceNotFoundException("Trip financial record not found for trip: " + request.getTripId()));
+
+        if (!"FINANCED".equals(tripFinancial.getStatus())) {
+            throw new InvalidTransactionException("Trip has already been repaid or is in invalid state: " + tripFinancial.getStatus());
+        }
+
+        // CRITICAL: Use ORIGINAL principal amount for interest calculation, not net amount
+        BigDecimal originalPrincipalAmount = tripFinancial.getOriginalPrincipalAmount(); // e.g., 500 (not 497.5)
+
+        // Calculate interest on ORIGINAL amount
+        long daysUsed = FinancialCalculationUtil.calculateDaysBetween(tripFinancial.getFinancingDate(), LocalDateTime.now());
+        BigDecimal calculatedInterest = FinancialCalculationUtil.calculateSimpleInterest(
+                originalPrincipalAmount,  // Interest on 500, not 497.5
+                tripFinancial.getInterestRate(),
+                daysUsed
+        );
+
+        // If interest is provided in request, use it; otherwise use calculated
+        BigDecimal interestAmount = request.getInterestAmount() != null ?
+                request.getInterestAmount() : calculatedInterest;
+
+        BigDecimal totalRepaymentAmount = originalPrincipalAmount.add(interestAmount);
+
+        Wallet fromWallet = walletRepository.findByUserIdWithLock(request.getFromUserId())
+                .orElseThrow(() -> new WalletNotFoundException("Payer wallet not found for user: " + request.getFromUserId()));
+
+        Wallet toWallet = walletRepository.findByUserIdWithLock(request.getToUserId())
+                .orElseThrow(() -> new WalletNotFoundException("Lender wallet not found for user: " + request.getToUserId()));
+
+        validateWalletStatus(fromWallet);
+        validateWalletStatus(toWallet);
+
+        if (!fromWallet.getCurrencyCode().equals(toWallet.getCurrencyCode())) {
+            throw new InvalidTransactionException("Currency mismatch between wallets");
+        }
+
+        BigDecimal fromBalance = getCurrentBalance(fromWallet.getId());
+        BigDecimal fromNewBalance = fromBalance.subtract(totalRepaymentAmount);
+
+        String description = String.format("Repayment for trip %d (Contract: %d) - Original principal: %s, Net received by transporter: %s, Platform fee: %s, Interest calculated on original %s: %s (%d days). Total repayment: %s %s",
+                request.getTripId(), request.getContractId(),
+                originalPrincipalAmount, tripFinancial.getNetAmountToTransporter(), tripFinancial.getPlatformFeeAmount(),
+                originalPrincipalAmount, interestAmount, daysUsed, totalRepaymentAmount, fromWallet.getCurrencyCode());
+
+        Transaction transaction = Transaction.builder()
+                .transactionType("TRANSFER")
+                .status("COMPLETED")
+                .description(description)
+                .tripId(request.getTripId())
+                .contractId(request.getContractId())
+                .transactionPurpose("REPAYMENT")
+                .grossAmount(totalRepaymentAmount)
+                .platformFeeAmount(BigDecimal.ZERO)  // No platform fee on repayment
+                .netAmount(totalRepaymentAmount)
+                .createdByUserId(enteredByUserId)
+                .createdAt(LocalDateTime.now())
+                .completedAt(LocalDateTime.now())
+                .actualTransferDate(request.getActualTransferDate())
+                .build();
+
+        transaction = transactionRepository.save(transaction);
+
+        // Entry 1: Debit from payer wallet (total repayment amount: principal + interest)
+        TransactionEntry debitEntry = TransactionEntry.builder()
+                .transactionId(transaction.getTransactionId())
+                .walletId(fromWallet.getId())
+                .entryType("DEBIT")
+                .amount(totalRepaymentAmount)
+                .balanceAfter(fromNewBalance)
+                .entrySequence((short) 1)
+                .build();
+
+        debitEntry = entryRepository.save(debitEntry);
+
+        // Entry 2: Credit to lender wallet (total repayment amount: principal + interest)
+        BigDecimal toBalance = getCurrentBalance(toWallet.getId());
+        BigDecimal toNewBalance = toBalance.add(totalRepaymentAmount);
+
+        TransactionEntry creditEntry = TransactionEntry.builder()
+                .transactionId(transaction.getTransactionId())
+                .walletId(toWallet.getId())
+                .entryType("CREDIT")
+                .amount(totalRepaymentAmount)
+                .balanceAfter(toNewBalance)
+                .entrySequence((short) 2)
+                .build();
+
+        creditEntry = entryRepository.save(creditEntry);
+
+        // Update TripFinancial record
+        tripFinancial.setRepaymentTransactionId(transaction.getTransactionId());
+        tripFinancial.setRepaymentDate(LocalDateTime.now());
+        tripFinancial.setDaysUsed((int) daysUsed);
+        tripFinancial.setCalculatedInterest(calculatedInterest);
+        tripFinancial.setTotalRepaymentAmount(totalRepaymentAmount);
+        tripFinancial.setPrincipalRepaid(originalPrincipalAmount);
+        tripFinancial.setInterestRepaid(interestAmount);
+        tripFinancial.setStatus("REPAID");
+        tripFinancialRepository.save(tripFinancial);
+
+        log.info("TripFinancial updated: Interest calculated on ORIGINAL amount {} for {} days = {}. Total repayment: {}",
+                originalPrincipalAmount, daysUsed, calculatedInterest, totalRepaymentAmount);
+
+        ManualTransferRequest manualRequest = ManualTransferRequest.builder()
+                .transactionId(transaction.getTransactionId())
+                .requestType("TRANSFER")
+                .fromUserId(request.getFromUserId())
+                .toUserId(request.getToUserId())
+                .amount(totalRepaymentAmount)
+                .paymentMethod(request.getPaymentMethod())
+                .referenceNumber(request.getReferenceNumber())
+                .remarks(request.getRemarks() != null ? request.getRemarks() :
+                        String.format("Repayment for trip %d - Original Principal: %s (Net to transporter: %s), Interest on original: %s, Total: %s",
+                                request.getTripId(), originalPrincipalAmount, tripFinancial.getNetAmountToTransporter(),
+                                interestAmount, totalRepaymentAmount))
+                .enteredByUserId(enteredByUserId)
+                .enteredAt(LocalDateTime.now())
+                .build();
+
+        manualRequest = manualRequestRepository.save(manualRequest);
+
+        if (request.getProofImageBase64() != null && !request.getProofImageBase64().isEmpty()) {
+            saveDocument(transaction.getTransactionId(), request.getProofImageBase64(),
+                    request.getProofImageFileName(), request.getProofImageMimeType());
+        }
+
+        log.info("Repayment transfer processed successfully. Transaction ID: {}. Interest calculated on ORIGINAL amount, not net.",
+                transaction.getTransactionId());
+
+        return mapToTransactionResponseDTO(transaction, Arrays.asList(debitEntry, creditEntry), manualRequest);
+    }
+
     private BigDecimal getCurrentBalance(Long walletId) {
         return entryRepository.getLatestBalanceSnapshot(walletId)
                 .orElse(entryRepository.calculateWalletBalance(walletId));
@@ -416,23 +756,46 @@ public class WalletServiceImpl implements WalletService {
     }
 
     private void saveDocument(UUID transactionId, String base64Data, String fileName, String mimeType) {
+        if (base64Data == null || base64Data.trim().isEmpty()) {
+            log.warn("Skipping document save - base64Data is empty for transaction: {}", transactionId);
+            return;
+        }
+
         try {
-            byte[] fileData = Base64.getDecoder().decode(base64Data);
+            // Validate Base64 format before decoding
+            String cleanBase64 = base64Data.trim();
+
+            // Remove data URL prefix if present (e.g., "data:image/png;base64,")
+            if (cleanBase64.contains(",")) {
+                cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(",") + 1);
+            }
+
+            // Try to decode - will throw IllegalArgumentException if invalid
+            byte[] fileData = Base64.getDecoder().decode(cleanBase64);
+
+            if (fileData.length == 0) {
+                log.warn("Decoded file data is empty for transaction: {}", transactionId);
+                return;
+            }
 
             TransactionDocument document = TransactionDocument.builder()
                     .transactionId(transactionId)
                     .documentType("PROOF_OF_PAYMENT")
-                    .fileName(fileName != null ? fileName : "document.jpg")
-                    .mimeType(mimeType != null ? mimeType : "image/jpeg")
+                    .fileName(fileName != null && !fileName.trim().isEmpty() ? fileName : "document.jpg")
+                    .mimeType(mimeType != null && !mimeType.trim().isEmpty() ? mimeType : "image/jpeg")
                     .fileData(fileData)
                     .fileSize(fileData.length)
                     .uploadedAt(LocalDateTime.now())
                     .build();
 
             documentRepository.save(document);
-            log.info("Document saved for transaction: {}", transactionId);
+            log.info("Document saved successfully for transaction: {} (size: {} bytes)", transactionId, fileData.length);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid Base64 format for transaction: {} - Error: {}", transactionId, e.getMessage());
+            throw new InvalidTransactionException("Invalid proof image format. Please provide valid Base64 encoded image data.");
         } catch (Exception e) {
-            log.error("Error saving document for transaction: {}", transactionId, e);
+            log.error("Unexpected error saving document for transaction: {}", transactionId, e);
+            throw new InvalidTransactionException("Failed to save proof image: " + e.getMessage());
         }
     }
 

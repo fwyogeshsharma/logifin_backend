@@ -6,11 +6,13 @@ import com.logifin.dto.RegisterRequest;
 import com.logifin.entity.Company;
 import com.logifin.entity.Role;
 import com.logifin.entity.User;
+import com.logifin.entity.Wallet;
 import com.logifin.exception.DuplicateResourceException;
 import com.logifin.exception.ResourceNotFoundException;
 import com.logifin.repository.CompanyRepository;
 import com.logifin.repository.RoleRepository;
 import com.logifin.repository.UserRepository;
+import com.logifin.repository.WalletRepository;
 import com.logifin.security.JwtTokenProvider;
 import com.logifin.security.UserPrincipal;
 import com.logifin.service.AuthService;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Implementation of AuthService for authentication operations.
  * Handles login and registration with company admin assignment for first users.
+ * Creates default wallet and assigns default role for new users.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,6 +45,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final CompanyAdminService companyAdminService;
+    private final WalletRepository walletRepository;
+
+    private static final String DEFAULT_ROLE = "ROLE_USER";
 
     @Override
     public AuthResponse login(LoginRequest loginRequest) {
@@ -88,11 +94,18 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateResourceException("User", "email", registerRequest.getEmail());
         }
 
-        // Find role by roleId if provided
+        // Find role by roleId if provided, otherwise assign default role
         Role role = null;
         if (registerRequest.getRoleId() != null) {
             role = roleRepository.findById(registerRequest.getRoleId())
                     .orElseThrow(() -> new ResourceNotFoundException("Role", "id", registerRequest.getRoleId()));
+        } else {
+            // Assign default ROLE_CSR if no role is provided
+            role = roleRepository.findByRoleName(DEFAULT_ROLE)
+                    .orElse(null);
+            if (role != null) {
+                log.debug("Assigning default role {} to new user", DEFAULT_ROLE);
+            }
         }
 
         // Find company by companyId if provided
@@ -122,6 +135,9 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with ID: {}", savedUser.getId());
+
+        // Create default wallet for the user with INR currency
+        createDefaultWallet(savedUser.getId());
 
         // If this is the first user for the company, assign them as company admin
         if (isFirstUserForCompany && company != null) {
@@ -156,5 +172,25 @@ public class AuthServiceImpl implements AuthService {
                 .companyName(company != null ? company.getName() : null)
                 .isCompanyAdmin(isCompanyAdmin)
                 .build();
+    }
+
+    /**
+     * Creates a default wallet for a user with INR currency
+     */
+    private void createDefaultWallet(Long userId) {
+        try {
+            if (!walletRepository.existsByUserId(userId)) {
+                Wallet wallet = Wallet.builder()
+                        .userId(userId)
+                        .currencyCode("INR")
+                        .status("ACTIVE")
+                        .build();
+                walletRepository.save(wallet);
+                log.info("Created default wallet for user: {}", userId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to create wallet for user: {}", userId, e);
+            // Don't throw exception - wallet creation failure shouldn't fail user registration
+        }
     }
 }

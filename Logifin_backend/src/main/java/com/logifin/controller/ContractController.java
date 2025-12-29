@@ -55,8 +55,9 @@ public class ContractController {
     @PostMapping
     @PreAuthorize("hasRole('TRUST_ACCOUNT')")
     public ResponseEntity<ApiResponse<ContractResponse>> createContract(
-            @Valid @RequestBody CreateContractRequest request) {
-        ContractResponse contract = contractService.createContract(request);
+            @Valid @RequestBody CreateContractRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.logifin.security.UserPrincipal principal) {
+        ContractResponse contract = contractService.createContract(request, principal.getId());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Contract created successfully", contract));

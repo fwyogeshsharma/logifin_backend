@@ -55,6 +55,17 @@ public class UpdateContractRequest {
     @Schema(description = "Penalty ratio percentage (0-100)", example = "5.00")
     private BigDecimal penaltyRatio;
 
+    @DecimalMin(value = "0.00", message = "Interest rate must be at least 0")
+    @DecimalMax(value = "100.00", message = "Interest rate must not exceed 100")
+    @Digits(integer = 3, fraction = 2, message = "Interest rate must have at most 3 integer digits and 2 decimal places")
+    @Schema(description = "Annual interest rate percentage (0-100)", example = "12.50")
+    private BigDecimal interestRate;
+
+    @Min(value = 1, message = "Maturity days must be at least 1")
+    @Max(value = 365, message = "Maturity days must not exceed 365")
+    @Schema(description = "Number of days until maturity (1-365)", example = "30")
+    private Integer maturityDays;
+
     // ==================== Contract Metadata ====================
 
     @Size(max = 50, message = "Contract number must not exceed 50 characters")

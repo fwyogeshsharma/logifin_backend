@@ -51,7 +51,7 @@ public class ContractServiceImpl implements ContractService {
             @CacheEvict(value = CACHE_CONTRACTS, allEntries = true),
             @CacheEvict(value = CACHE_CONTRACT_BY_NUMBER, allEntries = true)
     })
-    public ContractResponse createContract(CreateContractRequest request) {
+    public ContractResponse createContract(CreateContractRequest request, Long createdByUserId) {
         log.debug("Creating contract: {}", request.getContractNumber());
 
         // Validate uniqueness
@@ -76,6 +76,10 @@ public class ContractServiceImpl implements ContractService {
                     .orElseThrow(() -> new ResourceNotFoundException("LoanStage", "id", request.getLoanStageId()));
         }
 
+        // Fetch the user creating the contract
+        User createdByUser = userRepository.findById(createdByUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", createdByUserId));
+
         // Build entity
         Contract contract = Contract.builder()
                 .contractDocument(request.getContractDocument())
@@ -84,6 +88,8 @@ public class ContractServiceImpl implements ContractService {
                 .loanPercent(request.getLoanPercent())
                 .ltv(request.getLtv())
                 .penaltyRatio(request.getPenaltyRatio())
+                .interestRate(request.getInterestRate())
+                .maturityDays(request.getMaturityDays())
                 .contractNumber(request.getContractNumber())
                 .expiryDate(request.getExpiryDate())
                 .contractType(contractType)
@@ -91,6 +97,7 @@ public class ContractServiceImpl implements ContractService {
                 .consignerCompany(consignerCompany)
                 .loanStage(loanStage)
                 .status(StringUtils.hasText(request.getStatus()) ? request.getStatus() : "ACTIVE")
+                .createdBy(createdByUser)
                 .build();
 
         // Save contract
@@ -198,6 +205,12 @@ public class ContractServiceImpl implements ContractService {
         }
         if (request.getPenaltyRatio() != null) {
             existingContract.setPenaltyRatio(request.getPenaltyRatio());
+        }
+        if (request.getInterestRate() != null) {
+            existingContract.setInterestRate(request.getInterestRate());
+        }
+        if (request.getMaturityDays() != null) {
+            existingContract.setMaturityDays(request.getMaturityDays());
         }
         if (StringUtils.hasText(request.getContractNumber())) {
             existingContract.setContractNumber(request.getContractNumber());
@@ -604,6 +617,8 @@ public class ContractServiceImpl implements ContractService {
                 .loanPercent(contract.getLoanPercent())
                 .ltv(contract.getLtv())
                 .penaltyRatio(contract.getPenaltyRatio())
+                .interestRate(contract.getInterestRate())
+                .maturityDays(contract.getMaturityDays())
                 .contractNumber(contract.getContractNumber())
                 .expiryDate(contract.getExpiryDate())
                 .status(contract.getStatus())

@@ -142,7 +142,7 @@ class TripExcelParserTest {
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getPickup()).isEqualTo("Mumbai, Maharashtra");
             assertThat(result.get(0).getDestination()).isEqualTo("Delhi, NCR");
-            assertThat(result.get(0).getSender()).isEqualTo("ABC Traders, Inc.");
+            assertThat(result.get(0).getSenderId()).isNotNull();
             assertThat(result.get(0).getNotes()).isEqualTo("Handle with care, fragile");
         }
 

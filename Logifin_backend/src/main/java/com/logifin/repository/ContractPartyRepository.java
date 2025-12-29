@@ -1,5 +1,6 @@
 package com.logifin.repository;
 
+import com.logifin.entity.Contract;
 import com.logifin.entity.ContractParty;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -67,4 +68,24 @@ public interface ContractPartyRepository extends JpaRepository<ContractParty, Lo
      */
     @Query("SELECT COUNT(cp) FROM ContractParty cp WHERE cp.contract.id = :contractId AND cp.signedAt IS NOT NULL")
     long countSignedPartiesByContractId(@Param("contractId") Long contractId);
+
+    /**
+     * Find contracts that have all three specified users as parties.
+     * Used to find the contract between lender, transporter, and consigner for trip financing.
+     * Returns active, non-expired contracts ordered by expiry date (furthest expiry first).
+     */
+    @Query("SELECT DISTINCT c FROM Contract c " +
+           "JOIN ContractParty cp1 ON cp1.contract.id = c.id " +
+           "JOIN ContractParty cp2 ON cp2.contract.id = c.id " +
+           "JOIN ContractParty cp3 ON cp3.contract.id = c.id " +
+           "WHERE cp1.user.id = :userId1 " +
+           "AND cp2.user.id = :userId2 " +
+           "AND cp3.user.id = :userId3 " +
+           "AND c.status = 'ACTIVE' " +
+           "AND c.expiryDate > CURRENT_DATE " +
+           "ORDER BY c.expiryDate DESC")
+    List<Contract> findActiveContractsByThreeParties(
+            @Param("userId1") Long userId1,
+            @Param("userId2") Long userId2,
+            @Param("userId3") Long userId3);
 }

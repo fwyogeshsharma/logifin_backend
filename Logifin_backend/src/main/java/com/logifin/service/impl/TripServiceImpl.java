@@ -2,12 +2,15 @@ package com.logifin.service.impl;
 
 import com.logifin.dto.*;
 import com.logifin.entity.Company;
+import com.logifin.entity.Contract;
 import com.logifin.entity.DocumentType;
 import com.logifin.entity.Trip;
 import com.logifin.entity.TripDocument;
 import com.logifin.entity.User;
+import com.logifin.exception.BadRequestException;
 import com.logifin.exception.DuplicateResourceException;
 import com.logifin.exception.ResourceNotFoundException;
+import com.logifin.repository.ContractRepository;
 import com.logifin.repository.DocumentTypeRepository;
 import com.logifin.repository.TripDocumentRepository;
 import com.logifin.repository.TripRepository;
@@ -53,11 +56,12 @@ public class TripServiceImpl implements TripService {
     private final TripDocumentRepository tripDocumentRepository;
     private final DocumentTypeRepository documentTypeRepository;
     private final UserRepository userRepository;
+    private final ContractRepository contractRepository;
     private final TripExcelParser tripExcelParser;
 
     private static final String[] CSV_HEADERS = {
-            "pickup", "destination", "sender", "receiver",
-            "transporter", "loanAmount", "interestRate", "maturityDays",
+            "pickup", "destination", "senderId", "receiver",
+            "transporterId", "loanAmount", "interestRate", "maturityDays",
             "distanceKm", "loadType", "weightKg", "notes"
     };
 
@@ -153,6 +157,59 @@ public class TripServiceImpl implements TripService {
         return createPagedResponse(tripPage);
     }
 
+    @Override
+    public TripResponseDTO financeTrip(Long tripId, TripFinanceRequestDTO request, Long lenderId) {
+        log.debug("Financing trip {} by lender {} with contract {}", tripId, lenderId, request.getContractId());
+
+        // Validate trip exists
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", "id", tripId));
+
+        // Validate trip is in ACTIVE status
+        if (trip.getStatus() != Trip.TripStatus.ACTIVE) {
+            throw new BadRequestException("Trip must be in ACTIVE status to be financed. Current status: " + trip.getStatus());
+        }
+
+        // Validate trip doesn't already have a contract
+        if (trip.getContract() != null) {
+            throw new BadRequestException("Trip is already financed by contract ID: " + trip.getContract().getId());
+        }
+
+        // Validate contract exists
+        Contract contract = contractRepository.findById(request.getContractId())
+                .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", request.getContractId()));
+
+        // Validate contract is ACTIVE
+        if (!"ACTIVE".equals(contract.getStatus())) {
+            throw new BadRequestException("Contract must be ACTIVE to finance trips. Current status: " + contract.getStatus());
+        }
+
+        // Validate contract hasn't expired
+        if (contract.getExpiryDate() != null && contract.getExpiryDate().isBefore(LocalDate.now())) {
+            throw new BadRequestException("Contract has expired on: " + contract.getExpiryDate());
+        }
+
+        // Validate lender exists
+        User lender = userRepository.findById(lenderId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", lenderId));
+
+        // Validate lender has LENDER role (optional - can be enforced at controller level with @PreAuthorize)
+
+        // Link trip to contract
+        trip.setContract(contract);
+
+        // Update trip's financial terms from contract
+        trip.setInterestRate(contract.getInterestRate());
+        trip.setMaturityDays(contract.getMaturityDays());
+
+        // Save the updated trip
+        Trip savedTrip = tripRepository.save(trip);
+
+        log.info("Trip {} successfully financed by lender {} using contract {}", tripId, lenderId, request.getContractId());
+
+        return mapToResponseDTO(savedTrip);
+    }
+
     // ==================== Bulk Operations ====================
 
     @Override
@@ -199,7 +256,7 @@ public class TripServiceImpl implements TripService {
                     response.addSuccessfulTripId(savedTrip.getId());
                 } catch (Exception e) {
                     log.error("Error saving trip at row {}: {}", rowNumber, e.getMessage());
-                    String rowIdentifier = request.getTransporter() + " - " + request.getPickup();
+                    String rowIdentifier = "TransporterID:" + request.getTransporterId() + " - " + request.getPickup();
                     response.addError(ErrorRowDTO.builder()
                             .rowNumber(rowNumber)
                             .rowIdentifier(rowIdentifier)
@@ -237,9 +294,9 @@ public class TripServiceImpl implements TripService {
         for (Trip trip : trips) {
             csv.append(escapeCsvField(trip.getPickup())).append(",");
             csv.append(escapeCsvField(trip.getDestination())).append(",");
-            csv.append(escapeCsvField(trip.getSender())).append(",");
+            csv.append(trip.getSender() != null ? trip.getSender().getId() : "").append(",");
             csv.append(escapeCsvField(trip.getReceiver())).append(",");
-            csv.append(escapeCsvField(trip.getTransporter())).append(",");
+            csv.append(trip.getTransporter() != null ? trip.getTransporter().getId() : "").append(",");
             csv.append(trip.getLoanAmount()).append(",");
             csv.append(trip.getInterestRate()).append(",");
             csv.append(trip.getMaturityDays()).append(",");
@@ -289,9 +346,9 @@ public class TripServiceImpl implements TripService {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(trip.getPickup());
                 row.createCell(1).setCellValue(trip.getDestination());
-                row.createCell(2).setCellValue(trip.getSender());
+                row.createCell(2).setCellValue(trip.getSender() != null ? trip.getSender().getId() : 0);
                 row.createCell(3).setCellValue(trip.getReceiver());
-                row.createCell(4).setCellValue(trip.getTransporter());
+                row.createCell(4).setCellValue(trip.getTransporter() != null ? trip.getTransporter().getId() : 0);
                 row.createCell(5).setCellValue(trip.getLoanAmount().doubleValue());
                 row.createCell(6).setCellValue(trip.getInterestRate().doubleValue());
                 row.createCell(7).setCellValue(trip.getMaturityDays());
@@ -555,12 +612,20 @@ public class TripServiceImpl implements TripService {
     // ==================== Helper Methods ====================
 
     private Trip buildTripFromRequest(TripRequestDTO request, User user) {
+        // Fetch sender user
+        User sender = userRepository.findById(request.getSenderId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getSenderId()));
+
+        // Fetch transporter user
+        User transporter = userRepository.findById(request.getTransporterId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getTransporterId()));
+
         return Trip.builder()
                 .pickup(request.getPickup())
                 .destination(request.getDestination())
-                .sender(request.getSender())
+                .sender(sender)
                 .receiver(request.getReceiver())
-                .transporter(request.getTransporter())
+                .transporter(transporter)
                 .loanAmount(request.getLoanAmount())
                 .interestRate(request.getInterestRate())
                 .maturityDays(request.getMaturityDays())
@@ -575,11 +640,19 @@ public class TripServiceImpl implements TripService {
     }
 
     private void updateTripFromRequest(Trip trip, TripRequestDTO request) {
+        // Fetch sender user
+        User sender = userRepository.findById(request.getSenderId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getSenderId()));
+
+        // Fetch transporter user
+        User transporter = userRepository.findById(request.getTransporterId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getTransporterId()));
+
         trip.setPickup(request.getPickup());
         trip.setDestination(request.getDestination());
-        trip.setSender(request.getSender());
+        trip.setSender(sender);
         trip.setReceiver(request.getReceiver());
-        trip.setTransporter(request.getTransporter());
+        trip.setTransporter(transporter);
         trip.setLoanAmount(request.getLoanAmount());
         trip.setInterestRate(request.getInterestRate());
         trip.setMaturityDays(request.getMaturityDays());
@@ -605,9 +678,13 @@ public class TripServiceImpl implements TripService {
                 .id(trip.getId())
                 .pickup(trip.getPickup())
                 .destination(trip.getDestination())
-                .sender(trip.getSender())
+                .senderId(trip.getSender() != null ? trip.getSender().getId() : null)
+                .senderName(trip.getSender() != null ?
+                        trip.getSender().getFirstName() + " " + trip.getSender().getLastName() : null)
                 .receiver(trip.getReceiver())
-                .transporter(trip.getTransporter())
+                .transporterId(trip.getTransporter() != null ? trip.getTransporter().getId() : null)
+                .transporterName(trip.getTransporter() != null ?
+                        trip.getTransporter().getFirstName() + " " + trip.getTransporter().getLastName() : null)
                 .loanAmount(trip.getLoanAmount())
                 .interestRate(trip.getInterestRate())
                 .maturityDays(trip.getMaturityDays())

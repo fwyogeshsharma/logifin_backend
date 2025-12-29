@@ -40,7 +40,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final WalletRepository walletRepository;
 
-    private static final String DEFAULT_ROLE = "ROLE_CSR";
+    private static final String DEFAULT_ROLE = "ROLE_USER";
 
     @Override
     @Caching(evict = {

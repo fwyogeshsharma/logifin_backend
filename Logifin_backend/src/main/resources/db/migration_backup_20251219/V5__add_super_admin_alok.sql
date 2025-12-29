@@ -15,5 +15,7 @@ VALUES (
     6
 );
 
+-- Note: Wallet for Super Admin will be created in V30 migration after wallets table is created
+
 -- Add comment
 COMMENT ON TABLE users IS 'Super Admin alok@faberwork.com added via V5 migration';

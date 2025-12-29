@@ -47,6 +47,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findByRole_RoleName(String roleName, Pageable pageable);
 
+    @Query(value = "SELECT * FROM users u INNER JOIN user_roles r ON u.role_id = r.id WHERE r.role_name = 'ROLE_SUPER_ADMIN' AND u.active = true ORDER BY u.id ASC LIMIT 1", nativeQuery = true)
+    Optional<User> findFirstSuperAdmin();
+
     /**
      * Check if any user exists for the given company.
      * Used to determine if a new user should become company admin.

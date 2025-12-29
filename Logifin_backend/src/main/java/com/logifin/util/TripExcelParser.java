@@ -141,9 +141,9 @@ public class TripExcelParser {
             errors.add("Destination is required");
         }
 
-        String sender = getValueOrEmpty(values, SENDER_COL);
-        if (!StringUtils.hasText(sender)) {
-            errors.add("Sender name is required");
+        Long senderId = parseLong(getValueOrEmpty(values, SENDER_COL), "Sender ID", errors);
+        if (senderId == null) {
+            errors.add("Sender ID is required");
         }
 
         String receiver = getValueOrEmpty(values, RECEIVER_COL);
@@ -151,9 +151,9 @@ public class TripExcelParser {
             errors.add("Receiver name is required");
         }
 
-        String transporter = getValueOrEmpty(values, TRANSPORTER_COL);
-        if (!StringUtils.hasText(transporter)) {
-            errors.add("Transporter name is required");
+        Long transporterId = parseLong(getValueOrEmpty(values, TRANSPORTER_COL), "Transporter ID", errors);
+        if (transporterId == null) {
+            errors.add("Transporter ID is required");
         }
 
         // Parse numeric fields
@@ -179,7 +179,7 @@ public class TripExcelParser {
         String notes = getValueOrEmpty(values, NOTES_COL);
 
         // Create row identifier for error tracking
-        String rowIdentifier = transporter + " - " + pickup;
+        String rowIdentifier = "TransporterID:" + transporterId + " - " + pickup;
 
         // If there are validation errors, add to response and return null
         if (!errors.isEmpty()) {
@@ -196,9 +196,9 @@ public class TripExcelParser {
         return TripRequestDTO.builder()
                 .pickup(pickup)
                 .destination(destination)
-                .sender(sender)
+                .senderId(senderId)
                 .receiver(receiver)
-                .transporter(transporter)
+                .transporterId(transporterId)
                 .loanAmount(loanAmount)
                 .interestRate(interestRate)
                 .maturityDays(maturityDays)
@@ -226,9 +226,9 @@ public class TripExcelParser {
             errors.add("Destination is required");
         }
 
-        String sender = getCellStringValue(row.getCell(SENDER_COL));
-        if (!StringUtils.hasText(sender)) {
-            errors.add("Sender name is required");
+        Long senderId = getCellLongValue(row.getCell(SENDER_COL), "Sender ID", errors);
+        if (senderId == null) {
+            errors.add("Sender ID is required");
         }
 
         String receiver = getCellStringValue(row.getCell(RECEIVER_COL));
@@ -236,9 +236,9 @@ public class TripExcelParser {
             errors.add("Receiver name is required");
         }
 
-        String transporter = getCellStringValue(row.getCell(TRANSPORTER_COL));
-        if (!StringUtils.hasText(transporter)) {
-            errors.add("Transporter name is required");
+        Long transporterId = getCellLongValue(row.getCell(TRANSPORTER_COL), "Transporter ID", errors);
+        if (transporterId == null) {
+            errors.add("Transporter ID is required");
         }
 
         // Parse numeric fields
@@ -264,7 +264,7 @@ public class TripExcelParser {
         String notes = getCellStringValue(row.getCell(NOTES_COL));
 
         // Create row identifier for error tracking
-        String rowIdentifier = transporter + " - " + pickup;
+        String rowIdentifier = "TransporterID:" + transporterId + " - " + pickup;
 
         // If there are validation errors, add to response and return null
         if (!errors.isEmpty()) {
@@ -281,9 +281,9 @@ public class TripExcelParser {
         return TripRequestDTO.builder()
                 .pickup(pickup)
                 .destination(destination)
-                .sender(sender)
+                .senderId(senderId)
                 .receiver(receiver)
-                .transporter(transporter)
+                .transporterId(transporterId)
                 .loanAmount(loanAmount)
                 .interestRate(interestRate)
                 .maturityDays(maturityDays)
@@ -363,6 +363,19 @@ public class TripExcelParser {
             return Integer.parseInt(value.trim().replaceAll("[,\\s]", ""));
         } catch (NumberFormatException e) {
             errors.add(fieldName + " must be a valid integer");
+            return null;
+        }
+    }
+
+    private Long parseLong(String value, String fieldName, List<String> errors) {
+        if (!StringUtils.hasText(value)) {
+            errors.add(fieldName + " is required");
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim().replaceAll("[,\\s]", ""));
+        } catch (NumberFormatException e) {
+            errors.add(fieldName + " must be a valid number");
             return null;
         }
     }
@@ -457,6 +470,27 @@ public class TripExcelParser {
             return null;
         } catch (NumberFormatException e) {
             errors.add(fieldName + " must be a valid integer");
+            return null;
+        }
+    }
+
+    private Long getCellLongValue(Cell cell, String fieldName, List<String> errors) {
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            errors.add(fieldName + " is required");
+            return null;
+        }
+
+        try {
+            if (cell.getCellType() == CellType.NUMERIC) {
+                return (long) cell.getNumericCellValue();
+            } else if (cell.getCellType() == CellType.STRING) {
+                String value = cell.getStringCellValue().trim().replaceAll("[,\\s]", "");
+                return Long.parseLong(value);
+            }
+            errors.add(fieldName + " must be a valid number");
+            return null;
+        } catch (NumberFormatException e) {
+            errors.add(fieldName + " must be a valid number");
             return null;
         }
     }

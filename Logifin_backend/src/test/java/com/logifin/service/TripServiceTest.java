@@ -55,6 +55,8 @@ class TripServiceTest {
     private TripServiceImpl tripService;
 
     private User testUser;
+    private User senderUser;
+    private User transporterUser;
     private Company testCompany;
     private Trip testTrip;
     private TripRequestDTO testTripRequestDTO;
@@ -83,12 +85,32 @@ class TripServiceTest {
                 .build();
         testUser.setId(1L);
 
+        senderUser = User.builder()
+                .firstName("Sender")
+                .lastName("User")
+                .email("sender@test.com")
+                .company(testCompany)
+                .role(testRole)
+                .active(true)
+                .build();
+        senderUser.setId(2L);
+
+        transporterUser = User.builder()
+                .firstName("Transporter")
+                .lastName("User")
+                .email("transporter@test.com")
+                .company(testCompany)
+                .role(testRole)
+                .active(true)
+                .build();
+        transporterUser.setId(3L);
+
         testTrip = Trip.builder()
                 .pickup("Mumbai")
                 .destination("Delhi")
-                .sender("ABC Traders")
+                .sender(senderUser)
                 .receiver("XYZ Industries")
-                .transporter("Fast Logistics")
+                .transporter(transporterUser)
                 .loanAmount(new BigDecimal("100000"))
                 .interestRate(new BigDecimal("12.5"))
                 .maturityDays(30)
@@ -107,9 +129,9 @@ class TripServiceTest {
         testTripRequestDTO = TripRequestDTO.builder()
                 .pickup("Mumbai")
                 .destination("Delhi")
-                .sender("ABC Traders")
+                .senderId(2L)
                 .receiver("XYZ Industries")
-                .transporter("Fast Logistics")
+                .transporterId(3L)
                 .loanAmount(new BigDecimal("100000"))
                 .interestRate(new BigDecimal("12.5"))
                 .maturityDays(30)
@@ -135,6 +157,8 @@ class TripServiceTest {
         @DisplayName("Should create trip successfully")
         void createTrip_Success() {
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(senderUser));
+            when(userRepository.findById(3L)).thenReturn(Optional.of(transporterUser));
             when(tripRepository.save(any(Trip.class))).thenReturn(testTrip);
             when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 
@@ -216,15 +240,17 @@ class TripServiceTest {
             TripRequestDTO updateRequest = TripRequestDTO.builder()
                     .pickup("Chennai")
                     .destination("Bangalore")
-                    .sender("ABC Traders")
+                    .senderId(2L)
                     .receiver("XYZ Industries")
-                    .transporter("Fast Logistics")
+                    .transporterId(3L)
                     .loanAmount(new BigDecimal("150000"))
                     .interestRate(new BigDecimal("10.0"))
                     .maturityDays(45)
                     .build();
 
             when(tripRepository.findById(1L)).thenReturn(Optional.of(testTrip));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(senderUser));
+            when(userRepository.findById(3L)).thenReturn(Optional.of(transporterUser));
             when(tripRepository.save(any(Trip.class))).thenReturn(testTrip);
             when(tripDocumentRepository.findByTripId(anyLong())).thenReturn(Collections.emptyList());
 

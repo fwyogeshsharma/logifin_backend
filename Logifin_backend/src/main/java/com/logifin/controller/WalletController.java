@@ -46,17 +46,43 @@ public class WalletController {
     }
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'USER')")
-    @Operation(summary = "Get wallet by user ID", description = "Retrieve wallet information for a user")
-    public ResponseEntity<ApiResponse<WalletDTO>> getWalletByUserId(@PathVariable Long userId) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LENDER', 'TRANSPORTER', 'TRUST_ACCOUNT')")
+    @Operation(summary = "Get wallet by user ID",
+               description = "Retrieve wallet information for a user. Trust accounts can be accessed by lenders and transporters.")
+    public ResponseEntity<ApiResponse<WalletDTO>> getWalletByUserId(
+            @PathVariable Long userId,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        // Allow users to access their own wallet or if they are admin
+        if (!currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+            if (!currentUser.getId().equals(userId)) {
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("You can only access your own wallet"));
+            }
+        }
+
         WalletDTO wallet = walletService.getWalletByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(wallet));
     }
 
     @GetMapping("/balance/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'USER')")
-    @Operation(summary = "Get wallet balance", description = "Get current balance of a user's wallet")
-    public ResponseEntity<ApiResponse<WalletBalanceDTO>> getWalletBalance(@PathVariable Long userId) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LENDER', 'TRANSPORTER', 'TRUST_ACCOUNT')")
+    @Operation(summary = "Get wallet balance",
+               description = "Get current balance of a user's wallet. Trust accounts can be viewed by lenders and transporters.")
+    public ResponseEntity<ApiResponse<WalletBalanceDTO>> getWalletBalance(
+            @PathVariable Long userId,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        // Allow users to access their own balance or if they are admin
+        if (!currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+            if (!currentUser.getId().equals(userId)) {
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("You can only access your own balance"));
+            }
+        }
+
         WalletBalanceDTO balance = walletService.getWalletBalance(userId);
         return ResponseEntity.ok(ApiResponse.success(balance));
     }
@@ -109,27 +135,79 @@ public class WalletController {
                 .body(ApiResponse.success("Transfer completed successfully", response));
     }
 
+    @PostMapping("/financing-transfer")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Financing transfer with portal fee",
+               description = "Transfer amount from contract wallet to transporter wallet with automatic portal service charge deduction. " +
+                           "The portal service charge (configured percentage) is automatically deducted from the transfer amount.")
+    public ResponseEntity<ApiResponse<TransactionResponseDTO>> financingTransfer(
+            @Valid @RequestBody FinancingTransferRequest request,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        TransactionResponseDTO response = walletService.processFinancingTransfer(request, currentUser.getId());
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Financing transfer completed successfully", response));
+    }
+
+    @PostMapping("/repayment-transfer")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Repayment transfer with interest",
+               description = "Transfer repayment amount (principal + interest) from shipper/contract wallet to lender wallet. " +
+                           "Tracks principal and interest amounts separately for reporting.")
+    public ResponseEntity<ApiResponse<TransactionResponseDTO>> repaymentTransfer(
+            @Valid @RequestBody RepaymentTransferRequest request,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        TransactionResponseDTO response = walletService.processRepaymentTransfer(request, currentUser.getId());
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Repayment transfer completed successfully", response));
+    }
+
     @GetMapping("/statement/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'USER')")
-    @Operation(summary = "Get wallet statement", description = "Get wallet statement for a date range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LENDER', 'TRANSPORTER', 'TRUST_ACCOUNT')")
+    @Operation(summary = "Get wallet statement",
+               description = "Get wallet statement for a date range. Trust accounts accessible by lenders and transporters.")
     public ResponseEntity<ApiResponse<WalletStatementDTO>> getStatement(
             @PathVariable Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        // Allow users to access their own statement or if they are admin
+        if (!currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+            if (!currentUser.getId().equals(userId)) {
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("You can only access your own statement"));
+            }
+        }
 
         WalletStatementDTO statement = walletService.getWalletStatement(userId, fromDate, toDate);
         return ResponseEntity.ok(ApiResponse.success(statement));
     }
 
     @GetMapping("/history/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'USER')")
-    @Operation(summary = "Get wallet history", description = "Get paginated transaction history")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LENDER', 'TRANSPORTER', 'TRUST_ACCOUNT')")
+    @Operation(summary = "Get wallet history",
+               description = "Get paginated transaction history. Trust accounts accessible by lenders and transporters.")
     public ResponseEntity<ApiResponse<Page<TransactionEntryDTO>>> getHistory(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+
+        // Allow users to access their own history or if they are admin
+        if (!currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+            if (!currentUser.getId().equals(userId)) {
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("You can only access your own history"));
+            }
+        }
 
         Sort.Direction direction = sortDirection.equalsIgnoreCase("ASC") ?
                 Sort.Direction.ASC : Sort.Direction.DESC;

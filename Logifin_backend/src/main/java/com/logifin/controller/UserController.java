@@ -32,38 +32,6 @@ public class UserController {
     private final UserService userService;
 
     @Operation(
-            summary = "Create User",
-            description = "Create a new user with an automatically generated wallet account. " +
-                    "The wallet is created with INR as the default currency and ACTIVE status. " +
-                    "Requires ADMIN or SUPER_ADMIN role."
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201",
-                    description = "User created successfully",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid request body",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "409",
-                    description = "Email already exists",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Access denied",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
-    })
-    @PostMapping
-    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO) {
-        UserDTO createdUser = userService.createUser(userDTO);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("User created successfully", createdUser));
-    }
-
-    @Operation(
             summary = "Get User by ID",
             description = "Retrieve a user by their ID. Requires CSR, ADMIN, or SUPER_ADMIN role."
     )

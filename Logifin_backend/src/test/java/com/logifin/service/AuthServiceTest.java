@@ -5,8 +5,12 @@ import com.logifin.dto.LoginRequest;
 import com.logifin.dto.RegisterRequest;
 import com.logifin.entity.Role;
 import com.logifin.entity.User;
+import com.logifin.entity.Wallet;
 import com.logifin.exception.DuplicateResourceException;
+import com.logifin.repository.CompanyRepository;
+import com.logifin.repository.RoleRepository;
 import com.logifin.repository.UserRepository;
+import com.logifin.repository.WalletRepository;
 import com.logifin.security.JwtTokenProvider;
 import com.logifin.security.UserPrincipal;
 import com.logifin.service.impl.AuthServiceImpl;
@@ -25,11 +29,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,10 +49,22 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private CompanyRepository companyRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
     private JwtTokenProvider tokenProvider;
+
+    @Mock
+    private CompanyAdminService companyAdminService;
+
+    @Mock
+    private WalletRepository walletRepository;
 
     @Mock
     private Authentication authentication;
@@ -63,8 +81,8 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         testRole = Role.builder()
-                .roleName("ROLE_CSR")
-                .description("CSR Role")
+                .roleName("ROLE_USER")
+                .description("User Role")
                 .build();
         testRole.setId(1L);
 
@@ -112,6 +130,7 @@ class AuthServiceTest {
                     .thenReturn(authentication);
             when(authentication.getPrincipal()).thenReturn(userPrincipalWithRole);
             when(tokenProvider.generateToken(authentication)).thenReturn("jwt-token");
+            when(companyAdminService.isUserCompanyAdmin(anyLong())).thenReturn(false);
 
             AuthResponse result = authService.login(loginRequest);
 
@@ -119,7 +138,7 @@ class AuthServiceTest {
             assertThat(result.getAccessToken()).isEqualTo("jwt-token");
             assertThat(result.getEmail()).isEqualTo("john.doe@test.com");
             assertThat(result.getTokenType()).isEqualTo("Bearer");
-            assertThat(result.getRole()).isEqualTo("ROLE_CSR");
+            assertThat(result.getRole()).isEqualTo("ROLE_USER");
         }
 
         @Test
@@ -134,6 +153,7 @@ class AuthServiceTest {
                     .thenReturn(authentication);
             when(authentication.getPrincipal()).thenReturn(userPrincipal);
             when(tokenProvider.generateToken(authentication)).thenReturn("jwt-token");
+            when(companyAdminService.isUserCompanyAdmin(anyLong())).thenReturn(false);
 
             AuthResponse result = authService.login(loginRequest);
 
@@ -149,8 +169,8 @@ class AuthServiceTest {
     class RegisterTests {
 
         @Test
-        @DisplayName("Should register user without role")
-        void shouldRegisterUserWithoutRole() {
+        @DisplayName("Should register user with default role and wallet")
+        void shouldRegisterUserWithDefaultRoleAndWallet() {
             RegisterRequest registerRequest = RegisterRequest.builder()
                     .firstName("John")
                     .lastName("Doe")
@@ -160,25 +180,29 @@ class AuthServiceTest {
                     .build();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(roleRepository.findByRoleName("ROLE_USER")).thenReturn(Optional.of(testRole));
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(false);
             when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                     .thenReturn(authentication);
             when(authentication.getPrincipal()).thenReturn(userPrincipal);
             when(tokenProvider.generateToken(authentication)).thenReturn("jwt-token");
+            when(companyAdminService.isUserCompanyAdmin(anyLong())).thenReturn(false);
 
             AuthResponse result = authService.register(registerRequest);
 
             assertThat(result).isNotNull();
             assertThat(result.getAccessToken()).isEqualTo("jwt-token");
             assertThat(result.getEmail()).isEqualTo("john.doe@test.com");
-            assertThat(result.getRole()).isNull();
             verify(userRepository).save(any(User.class));
+            verify(walletRepository).save(any(Wallet.class));
+            verify(roleRepository).findByRoleName("ROLE_USER");
         }
 
         @Test
-        @DisplayName("Should register user with null role in saved entity")
-        void shouldRegisterUserWithNullRoleInSavedEntity() {
+        @DisplayName("Should create wallet during registration")
+        void shouldCreateWalletDuringRegistration() {
             RegisterRequest registerRequest = RegisterRequest.builder()
                     .firstName("John")
                     .lastName("Doe")
@@ -188,24 +212,25 @@ class AuthServiceTest {
                     .build();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(roleRepository.findByRoleName("ROLE_USER")).thenReturn(Optional.of(testRole));
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(false);
             when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                     .thenReturn(authentication);
             when(authentication.getPrincipal()).thenReturn(userPrincipal);
             when(tokenProvider.generateToken(authentication)).thenReturn("jwt-token");
+            when(companyAdminService.isUserCompanyAdmin(anyLong())).thenReturn(false);
 
             authService.register(registerRequest);
 
-            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-            verify(userRepository).save(userCaptor.capture());
+            ArgumentCaptor<Wallet> walletCaptor = ArgumentCaptor.forClass(Wallet.class);
+            verify(walletRepository).save(walletCaptor.capture());
 
-            User savedUser = userCaptor.getValue();
-            assertThat(savedUser.getRole()).isNull();
-            assertThat(savedUser.getFirstName()).isEqualTo("John");
-            assertThat(savedUser.getLastName()).isEqualTo("Doe");
-            assertThat(savedUser.getEmail()).isEqualTo("john.doe@test.com");
-            assertThat(savedUser.getActive()).isTrue();
+            Wallet createdWallet = walletCaptor.getValue();
+            assertThat(createdWallet.getUserId()).isEqualTo(testUser.getId());
+            assertThat(createdWallet.getCurrencyCode()).isEqualTo("INR");
+            assertThat(createdWallet.getStatus()).isEqualTo("ACTIVE");
         }
 
         @Test
@@ -238,12 +263,15 @@ class AuthServiceTest {
                     .build();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(roleRepository.findById(1L)).thenReturn(Optional.of(testRole));
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenReturn(testUser);
+            when(walletRepository.existsByUserId(anyLong())).thenReturn(false);
             when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                     .thenReturn(authentication);
             when(authentication.getPrincipal()).thenReturn(userPrincipal);
             when(tokenProvider.generateToken(authentication)).thenReturn("jwt-token");
+            when(companyAdminService.isUserCompanyAdmin(anyLong())).thenReturn(false);
 
             AuthResponse result = authService.register(registerRequest);
 
@@ -253,6 +281,8 @@ class AuthServiceTest {
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(userCaptor.capture());
             assertThat(userCaptor.getValue().getFirstName()).isEqualTo("John");
+            verify(roleRepository).findById(1L);
+            verify(walletRepository).save(any(Wallet.class));
         }
     }
 }

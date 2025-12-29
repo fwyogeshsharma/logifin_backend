@@ -16,7 +16,8 @@ import java.util.List;
  */
 @Entity
 @Table(name = "trips", indexes = {
-    @Index(name = "idx_trip_transporter", columnList = "transporter"),
+    @Index(name = "idx_trip_sender", columnList = "sender_user_id"),
+    @Index(name = "idx_trip_transporter", columnList = "transporter_user_id"),
     @Index(name = "idx_trip_created_at", columnList = "created_at"),
     @Index(name = "idx_trip_pickup", columnList = "pickup"),
     @Index(name = "idx_trip_destination", columnList = "destination"),
@@ -39,20 +40,20 @@ public class Trip extends BaseEntity {
     @Column(name = "destination", nullable = false, length = 255)
     private String destination;
 
-    @NotBlank(message = "Sender name is required")
-    @Size(max = 150, message = "Sender name must not exceed 150 characters")
-    @Column(name = "sender", nullable = false, length = 150)
-    private String sender;
+    @NotNull(message = "Sender is required")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_user_id", nullable = false)
+    private User sender;
 
     @NotBlank(message = "Receiver name is required")
     @Size(max = 150, message = "Receiver name must not exceed 150 characters")
     @Column(name = "receiver", nullable = false, length = 150)
     private String receiver;
 
-    @NotBlank(message = "Transporter name is required")
-    @Size(max = 150, message = "Transporter name must not exceed 150 characters")
-    @Column(name = "transporter", nullable = false, length = 150)
-    private String transporter;
+    @NotNull(message = "Transporter is required")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transporter_user_id", nullable = false)
+    private User transporter;
 
     @NotNull(message = "Loan amount is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Loan amount must be greater than 0")
@@ -103,9 +104,9 @@ public class Trip extends BaseEntity {
     @JoinColumn(name = "company_id")
     private Company company;
 
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<TripBid> bids = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id")
+    private Contract contract;
 
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

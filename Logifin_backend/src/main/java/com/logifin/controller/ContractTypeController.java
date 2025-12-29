@@ -34,7 +34,7 @@ public class ContractTypeController {
 
     @Operation(
             summary = "Create Contract Type",
-            description = "Create a new contract type. Requires SUPER_ADMIN role."
+            description = "Create a new contract type. Requires ADMIN or SUPER_ADMIN role."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -51,7 +51,7 @@ public class ContractTypeController {
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     })
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ContractTypeDTO>> createContractType(@Valid @RequestBody ContractTypeDTO contractTypeDTO) {
         ContractTypeDTO createdContractType = contractTypeService.createContractType(contractTypeDTO);
         return ResponseEntity
@@ -130,10 +130,10 @@ public class ContractTypeController {
 
     @Operation(
             summary = "Update Contract Type",
-            description = "Update an existing contract type. Requires SUPER_ADMIN role."
+            description = "Update an existing contract type. Requires ADMIN or SUPER_ADMIN role."
     )
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ContractTypeDTO>> updateContractType(
             @Parameter(description = "Contract Type ID") @PathVariable Long id,
             @Valid @RequestBody ContractTypeDTO contractTypeDTO) {

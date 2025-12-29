@@ -24,6 +24,8 @@ public class TransferRequest {
     @Positive(message = "Amount must be positive")
     private BigDecimal amount;
 
+    private Long tripId;
+
     private String paymentMethod;
 
     private String referenceNumber;

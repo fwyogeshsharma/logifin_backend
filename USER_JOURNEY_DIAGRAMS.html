@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logifin - User Journey Diagrams</title>
+
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #4CAF50;
+            --accent-color: #FF9800;
+            --danger-color: #f44336;
+            --dark-bg: #1a1a2e;
+            --light-bg: #f5f7fa;
+            --text-dark: #2c3e50;
+            --text-light: #ecf0f1;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--light-bg);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: var(--header-height);
+            width: var(--sidebar-width);
+            height: calc(100vh - var(--header-height));
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 999;
+            transition: transform 0.3s;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin: 5px 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 25px;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: var(--light-bg);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            background: rgba(33, 150, 243, 0.1);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 40px;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            scroll-margin-top: calc(var(--header-height) + 20px);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--light-bg);
+        }
+
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .icon-lender { background: linear-gradient(135deg, #4CAF50, #45a049); }
+        .icon-transporter { background: linear-gradient(135deg, #2196F3, #1976D2); }
+        .icon-login { background: linear-gradient(135deg, #9C27B0, #7B1FA2); }
+        .icon-trip { background: linear-gradient(135deg, #FF9800, #F57C00); }
+        .icon-wallet { background: linear-gradient(135deg, #00BCD4, #0097A7); }
+        .icon-contract { background: linear-gradient(135deg, #FF5722, #E64A19); }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .section-description {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+
+        /* Diagram Container */
+        .diagram-container {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .diagram-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Mermaid diagram styling */
+        .mermaid {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .info-box-success {
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-left-color: var(--secondary-color);
+        }
+
+        .info-box-warning {
+            background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+            border-left-color: var(--accent-color);
+        }
+
+        .info-box-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Legend */
+        .legend {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .legend-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-dark);
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--light-bg);
+            border-radius: 6px;
+        }
+
+        .legend-icon {
+            font-size: 20px;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .toc-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-dark);
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .toc-item {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .toc-item:hover {
+            border-color: var(--primary-color);
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+        }
+
+        .toc-item i {
+            font-size: 20px;
+            color: var(--primary-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .section {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+        }
+
+        .menu-toggle {
+            display: none;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        /* Dark Mode */
+        body.dark-mode {
+            background: var(--dark-bg);
+            color: var(--text-light);
+        }
+
+        body.dark-mode .sidebar,
+        body.dark-mode .section {
+            background: #16213e;
+            color: var(--text-light);
+        }
+
+        body.dark-mode .nav-link {
+            color: var(--text-light);
+        }
+
+        body.dark-mode .diagram-container {
+            background: #0f1419;
+            border-color: #2c3e50;
+        }
+
+        body.dark-mode .mermaid {
+            background: #1a1a2e;
+        }
+
+        /* Print Styles */
+        @media print {
+            .sidebar,
+            .header,
+            .theme-toggle {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                margin-top: 0;
+            }
+        }
+
+        /* Scroll to top button */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(33, 150, 243, 0.5);
+        }
+
+        .scroll-top.visible {
+            display: flex;
+        }
+
+        /* Loading animation */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--primary-color);
+        }
+
+        .loading i {
+            font-size: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Feature badges */
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge-new {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .badge-popular {
+            background: #FF9800;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div>
+            <h1>
+                <i class="fas fa-map-marked-alt"></i>
+                Logifin User Journey
+                <span class="header-subtitle">Interactive Flow Diagrams</span>
+            </h1>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button class="menu-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <i class="fas fa-moon"></i>
+                <span>Dark Mode</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#overview" class="nav-link active">
+                    <i class="fas fa-home"></i>
+                    <span>Overview</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#lender-journey" class="nav-link">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Lender Journey</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#transporter-journey" class="nav-link">
+                    <i class="fas fa-truck"></i>
+                    <span>Transporter Journey</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#login-flow" class="nav-link">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Login Flow</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#trip-creation" class="nav-link">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Trip Creation</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#browse-finance" class="nav-link">
+                    <i class="fas fa-search-dollar"></i>
+                    <span>Browse & Finance</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#accept-lender" class="nav-link">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Accept Lender</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#wallet" class="nav-link">
+                    <i class="fas fa-wallet"></i>
+                    <span>Wallet Operations</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#contract" class="nav-link">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Contract Management</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#legend" class="nav-link">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Visual Legend</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Overview Section -->
+        <section id="overview" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-lender">
+                    <i class="fas fa-map-marked-alt"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">User Journey - Visual Flow Diagrams</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                <strong>Welcome to the Logifin User Journey Documentation!</strong> This interactive guide shows how different users interact with the Logifin platform, displaying actual screens, forms, buttons, and user actions. Navigate through the diagrams using the sidebar menu.
+            </p>
+
+            <div class="info-box info-box-success">
+                <div class="info-box-title">
+                    <i class="fas fa-lightbulb"></i>
+                    What You'll Find Here
+                </div>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Complete user journeys from login to task completion</li>
+                    <li>Actual UI screens with forms, buttons, and input fields</li>
+                    <li>Step-by-step workflows with decision points</li>
+                    <li>Visual representations of user interactions</li>
+                    <li>Success and error scenarios</li>
+                </ul>
+            </div>
+
+            <div class="toc">
+                <h3 class="toc-title"><i class="fas fa-list"></i> Quick Navigation</h3>
+                <div class="toc-grid">
+                    <a href="#lender-journey" class="toc-item">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        <span>Lender Complete Journey</span>
+                    </a>
+                    <a href="#transporter-journey" class="toc-item">
+                        <i class="fas fa-truck"></i>
+                        <span>Transporter Complete Journey</span>
+                    </a>
+                    <a href="#login-flow" class="toc-item">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>User Login Flow</span>
+                    </a>
+                    <a href="#trip-creation" class="toc-item">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Trip Creation Flow</span>
+                    </a>
+                    <a href="#browse-finance" class="toc-item">
+                        <i class="fas fa-search-dollar"></i>
+                        <span>Browse & Finance Trips</span>
+                    </a>
+                    <a href="#accept-lender" class="toc-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Accept Lender Flow</span>
+                    </a>
+                    <a href="#wallet" class="toc-item">
+                        <i class="fas fa-wallet"></i>
+                        <span>Wallet Operations</span>
+                    </a>
+                    <a href="#contract" class="toc-item">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Contract Management</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lender Journey -->
+        <section id="lender-journey" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-lender">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Lender Complete Journey</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Follow a lender from login through browsing available trips, marking interest in multiple trips simultaneously, and receiving notifications when transporters accept or reject their financing offers.
+            </p>
+
+            <div class="info-box">
+                <div class="info-box-title">
+                    <i class="fas fa-route"></i>
+                    Journey Highlights
+                </div>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Login:</strong> Secure authentication with email and password</li>
+                    <li><strong>Dashboard:</strong> View wallet balance, active financing, and pending interests</li>
+                    <li><strong>Browse Trips:</strong> Select multiple trips with checkboxes</li>
+                    <li><strong>Batch Interest:</strong> Mark interest in multiple trips with one click</li>
+                    <li><strong>Auto-Match:</strong> System finds contracts automatically</li>
+                    <li><strong>Notifications:</strong> Get alerts when transporters respond</li>
+                </ul>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-sitemap"></i>
+                    Complete Lender Flow Diagram
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([👤 Lender User]) --> Login[🔐 Login Screen<br/>Email: lender@example.com<br/>Password: ****<br/>━━━━━━━━━<br/>🔘 Login Button]
+
+    Login -->|Success| Dashboard[📊 Lender Dashboard<br/>━━━━━━━━━<br/>💰 My Wallet Balance: ₹50,000<br/>📈 Active Financing: 3<br/>⏳ Pending Interests: 5<br/>━━━━━━━━━<br/>🔘 Browse Trips<br/>🔘 My Interests<br/>🔘 My Wallet]
+
+    Dashboard -->|Click Browse| TripList[📋 Available Trips List<br/>━━━━━━━━━<br/>☑️ Trip #101: Mumbai → Delhi<br/>   Amount: ₹10,000<br/><br/>☑️ Trip #102: Pune → Bangalore<br/>   Amount: ₹15,000<br/><br/>☑️ Trip #103: Chennai → Hyderabad<br/>   Amount: ₹8,000<br/>━━━━━━━━━<br/>Selected: 2 trips<br/>🔘 Mark Interest]
+
+    TripList -->|Select & Click| Processing[⚙️ Processing...<br/>Finding contracts for each trip]
+
+    Processing --> Result[📊 Results Screen<br/>━━━━━━━━━<br/>✅ Trip #101: SUCCESS<br/>   Contract ID: 45<br/><br/>✅ Trip #102: SUCCESS<br/>   Contract ID: 45<br/>━━━━━━━━━<br/>2 Successful | 0 Failed]
+
+    Result -->|Wait| Notification[🔔 Notification<br/>━━━━━━━━━<br/>✅ Transporter ACCEPTED<br/>your interest in Trip #101!<br/>━━━━━━━━━<br/>🔘 View Details]
+
+    style Start fill:#4CAF50,color:#fff
+    style Login fill:#2196F3,color:#fff
+    style Dashboard fill:#FF9800,color:#fff
+    style Notification fill:#4CAF50,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Transporter Journey -->
+        <section id="transporter-journey" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-transporter">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Transporter Complete Journey</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                See how transporters create trips, receive notifications about interested lenders, compare financing offers, and accept the best lender to finance their trip.
+            </p>
+
+            <div class="info-box info-box-success">
+                <div class="info-box-title">
+                    <i class="fas fa-truck-loading"></i>
+                    Journey Steps
+                </div>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Create Trip:</strong> Multi-step form with route, consigner, and cargo details</li>
+                    <li><strong>Receive Interest:</strong> Notifications when lenders show interest</li>
+                    <li><strong>Compare Lenders:</strong> View contract terms side-by-side</li>
+                    <li><strong>Accept Lender:</strong> Choose best offer, auto-reject others</li>
+                    <li><strong>Trip Financed:</strong> Ready to start with secured financing</li>
+                </ul>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-sitemap"></i>
+                    Complete Transporter Flow Diagram
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([👤 Transporter User]) --> Login[🔐 Login Screen<br/>Email: transporter@example.com<br/>Password: ****<br/>━━━━━━━━━<br/>🔘 Login Button]
+
+    Login -->|Success| Dashboard[📊 Transporter Dashboard<br/>━━━━━━━━━<br/>🚛 Active Trips: 5<br/>💰 Pending Financing: 3<br/>🔔 New Interests: 7<br/>━━━━━━━━━<br/>🔘 Create Trip<br/>🔘 My Trips]
+
+    Dashboard -->|Click Create| TripForm[📝 Create Trip Form<br/>━━━━━━━━━<br/>📍 Pickup: Mumbai<br/>📍 Destination: Delhi<br/>👤 Consigner: ABC Company<br/>💰 Amount: ₹15,000<br/>━━━━━━━━━<br/>🔘 Create Trip]
+
+    TripForm -->|Submit| TripCreated[✅ Trip Created<br/>━━━━━━━━━<br/>Trip #150<br/>Mumbai → Delhi<br/>Amount: ₹15,000<br/>Status: Awaiting Finance]
+
+    TripCreated -->|Wait| LenderInterest[🔔 Notification<br/>━━━━━━━━━<br/>3 Lenders interested!<br/>━━━━━━━━━<br/>🔘 View Lenders]
+
+    LenderInterest --> ConfirmAccept[⚠️ Accept Lender<br/>━━━━━━━━━<br/>XYZ Finance<br/>Interest: 11.0%<br/>Maturity: 45 days<br/>━━━━━━━━━<br/>🔘 Confirm]
+
+    ConfirmAccept --> Accepted[✅ Lender Accepted!<br/>━━━━━━━━━<br/>Trip financed<br/>Others auto-rejected]
+
+    style Start fill:#2196F3,color:#fff
+    style TripCreated fill:#4CAF50,color:#fff
+    style Accepted fill:#4CAF50,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Login Flow -->
+        <section id="login-flow" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">User Login Flow</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Authentication flow showing how users log in and are redirected to role-specific dashboards (Lender, Transporter, or Admin).
+            </p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-network-wired"></i>
+                    Login and Role-Based Routing
+                </div>
+                <div class="mermaid">
+graph LR
+    User([👤 User]) --> LoginPage[🔐 Login Page<br/>━━━━━━━━━<br/>📧 Email<br/>🔒 Password<br/>━━━━━━━━━<br/>🔘 Login]
+
+    LoginPage -->|Credentials| Validate{Validating...}
+
+    Validate -->|✅ Success| Token[🎫 JWT Token<br/>Generated]
+
+    Token --> RoleCheck{Check Role}
+
+    RoleCheck -->|LENDER| LenderDash[📊 Lender<br/>Dashboard]
+
+    RoleCheck -->|TRANSPORTER| TransDash[📊 Transporter<br/>Dashboard]
+
+    RoleCheck -->|ADMIN| AdminDash[📊 Admin<br/>Dashboard]
+
+    Validate -->|❌ Failed| Error[❌ Error<br/>Invalid credentials]
+
+    Error --> LoginPage
+
+    style User fill:#4CAF50,color:#fff
+    style Token fill:#4CAF50,color:#fff
+    style LenderDash fill:#FF9800,color:#fff
+    style TransDash fill:#2196F3,color:#fff
+    style AdminDash fill:#9C27B0,color:#fff
+    style Error fill:#f44336,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Trip Creation -->
+        <section id="trip-creation" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-trip">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Trip Creation Flow</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Multi-step form showing how transporters create new trips with route information, consigner details, and cargo specifications.
+            </p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-tasks"></i>
+                    Step-by-Step Trip Creation
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([🚛 Transporter]) --> ClickCreate[Click Create Trip]
+
+    ClickCreate --> Form1[📝 Step 1: Route<br/>━━━━━━━━━<br/>From: Mumbai<br/>To: Delhi<br/>Distance: 1,400 km<br/>━━━━━━━━━<br/>🔘 Next]
+
+    Form1 --> Form2[📝 Step 2: Parties<br/>━━━━━━━━━<br/>Consigner: ABC Ltd<br/>Amount: ₹15,000<br/>━━━━━━━━━<br/>🔘 Next]
+
+    Form2 --> Form3[📝 Step 3: Cargo<br/>━━━━━━━━━<br/>Type: Electronics<br/>Weight: 500 kg<br/>Start: 2025-12-25<br/>━━━━━━━━━<br/>🔘 Review]
+
+    Form3 --> Review[📋 Review Details<br/>━━━━━━━━━<br/>All information<br/>━━━━━━━━━<br/>🔘 Create]
+
+    Review --> Success[✅ Trip Created!<br/>━━━━━━━━━<br/>Trip #150<br/>Now visible to lenders]
+
+    style Start fill:#2196F3,color:#fff
+    style Success fill:#4CAF50,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Browse & Finance -->
+        <section id="browse-finance" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-lender">
+                    <i class="fas fa-search-dollar"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Lender - Browse & Finance Trips</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Detailed flow showing how lenders search for trips, apply filters, select multiple trips, and mark interest with automatic contract discovery.
+            </p>
+
+            <div class="info-box info-box-warning">
+                <div class="info-box-title">
+                    <i class="fas fa-magic"></i>
+                    Automatic Contract Discovery
+                </div>
+                <p style="margin-top: 10px;">
+                    When a lender marks interest, the system automatically finds the contract between the lender, transporter, and consigner. No manual contract selection needed!
+                </p>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-filter"></i>
+                    Browse, Filter, and Finance Multiple Trips
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([💰 Lender]) --> Browse[Browse Trips]
+
+    Browse --> Filters[🔍 Apply Filters<br/>━━━━━━━━━<br/>Route, Amount<br/>Date, Company]
+
+    Filters --> TripList[📋 Trip List<br/>━━━━━━━━━<br/>☑️ Trip #101: ₹10,000<br/>☑️ Trip #103: ₹8,000<br/>☑️ Trip #105: ₹12,000<br/>━━━━━━━━━<br/>🔘 Mark Interest]
+
+    TripList --> ContractCheck[⚙️ Auto-finding<br/>contracts...]
+
+    ContractCheck --> Results[📊 Results<br/>━━━━━━━━━<br/>✅ Trip #101: SUCCESS<br/>✅ Trip #103: SUCCESS<br/>❌ Trip #105: No contract<br/>━━━━━━━━━<br/>Success: 2 | Failed: 1]
+
+    style Start fill:#4CAF50,color:#fff
+    style Results fill:#FF9800,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Accept Lender -->
+        <section id="accept-lender" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-transporter">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Transporter - Accept Lender</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                How transporters review multiple lender offers, compare contract terms, and accept the best lender (which automatically rejects other proposals).
+            </p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-handshake"></i>
+                    Lender Selection and Acceptance Flow
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([🔔 Notification]) --> ViewNotif[3 Lenders<br/>Interested]
+
+    ViewNotif --> LenderList[📊 Compare Lenders<br/>━━━━━━━━━<br/>🏆 XYZ Finance: 11.0%<br/>ABC Finance: 12.5%<br/>PQR Finance: 13.0%]
+
+    LenderList --> ViewDetails[📄 View Details<br/>━━━━━━━━━<br/>XYZ Finance<br/>Contract #50<br/>Interest: 11.0%<br/>Maturity: 45 days]
+
+    ViewDetails --> ConfirmDialog[⚠️ Confirm Accept<br/>━━━━━━━━━<br/>Will auto-reject<br/>2 other lenders<br/>━━━━━━━━━<br/>🔘 Confirm]
+
+    ConfirmDialog --> Processing[⚙️ Processing...<br/>Accepting & Rejecting]
+
+    Processing --> Success[✅ Success!<br/>━━━━━━━━━<br/>Trip financed<br/>by XYZ Finance]
+
+    style Start fill:#FF9800,color:#fff
+    style Success fill:#4CAF50,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Wallet Operations -->
+        <section id="wallet" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-wallet">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Wallet Operations</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Complete wallet management including viewing balance, creating transfer requests, uploading proof documents, and viewing transaction statements.
+            </p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-exchange-alt"></i>
+                    Wallet Transfer and Statement Flow
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([👤 User]) --> WalletDash[💳 Wallet Dashboard<br/>━━━━━━━━━<br/>Balance: ₹50,000<br/>━━━━━━━━━<br/>🔘 View Statement<br/>🔘 Transfer]
+
+    WalletDash --> TransferReq[💸 Transfer Request<br/>━━━━━━━━━<br/>From: My Wallet<br/>To: User ABC<br/>Amount: ₹10,000<br/>Proof: Upload<br/>━━━━━━━━━<br/>🔘 Submit]
+
+    TransferReq --> Confirm[⚠️ Confirm Transfer<br/>━━━━━━━━━<br/>New balance: ₹40,000<br/>━━━━━━━━━<br/>🔘 Confirm]
+
+    Confirm --> Processing[⚙️ Processing...<br/>Creating entries]
+
+    Processing --> Success[✅ Transfer Done!<br/>━━━━━━━━━<br/>Transaction #TXN12345<br/>Balance: ₹40,000]
+
+    WalletDash --> Statement[📊 View Statement<br/>━━━━━━━━━<br/>Transaction history<br/>Balance calculation]
+
+    style Start fill:#4CAF50,color:#fff
+    style Success fill:#4CAF50,color:#fff
+    style WalletDash fill:#FF9800,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Contract Management -->
+        <section id="contract" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-contract">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Contract Management</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Admin workflow for creating three-party contracts with financial terms, validity periods, and party assignments.
+            </p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">
+                    <i class="fas fa-file-signature"></i>
+                    Contract Creation Flow
+                </div>
+                <div class="mermaid">
+graph TB
+    Start([👤 Admin]) --> Dashboard[📋 Contract<br/>Management<br/>━━━━━━━━━<br/>🔘 Create Contract]
+
+    Dashboard --> Form1[📝 Step 1: Parties<br/>━━━━━━━━━<br/>Lender: XYZ Finance<br/>Transporter: ABC<br/>Consigner: DEF Co]
+
+    Form1 --> Form2[📝 Step 2: Terms<br/>━━━━━━━━━<br/>Interest: 11.5%<br/>Maturity: 45 days<br/>LTV: 75%]
+
+    Form2 --> Form3[📝 Step 3: Validity<br/>━━━━━━━━━<br/>Start: 2025-12-20<br/>Expiry: 2026-12-20]
+
+    Form3 --> Review[📋 Review<br/>━━━━━━━━━<br/>All details<br/>━━━━━━━━━<br/>🔘 Create]
+
+    Review --> Success[✅ Contract #55<br/>Created!<br/>━━━━━━━━━<br/>Status: Active<br/>Parties notified]
+
+    style Start fill:#9C27B0,color:#fff
+    style Success fill:#4CAF50,color:#fff
+                </div>
+            </div>
+        </section>
+
+        <!-- Visual Legend -->
+        <section id="legend" class="section">
+            <div class="section-header">
+                <div class="section-icon" style="background: linear-gradient(135deg, #607D8B, #455A64);">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div>
+                    <h2 class="section-title">Visual Legend</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Understanding the icons and symbols used throughout the diagrams.
+            </p>
+
+            <div class="legend">
+                <h3 class="legend-title">Icons Used in Diagrams</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span class="legend-icon">👤</span>
+                        <span>User/Person</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🔐</span>
+                        <span>Login/Security</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">💰</span>
+                        <span>Money/Finance</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🚛</span>
+                        <span>Truck/Transport</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">📍</span>
+                        <span>Location/GPS</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">📋</span>
+                        <span>List/Document</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">✅</span>
+                        <span>Success/Confirmed</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">❌</span>
+                        <span>Error/Rejected</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">⏳</span>
+                        <span>Pending/Waiting</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🔔</span>
+                        <span>Notification</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">📝</span>
+                        <span>Form/Input</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">💳</span>
+                        <span>Wallet/Payment</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">📄</span>
+                        <span>Details/Document</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🔍</span>
+                        <span>Search/Filter</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">⚙️</span>
+                        <span>Processing</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legend" style="margin-top: 30px;">
+                <h3 class="legend-title">Status Colors</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span style="width: 20px; height: 20px; background: #4CAF50; border-radius: 4px;"></span>
+                        <span>Success / Active / Approved</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="width: 20px; height: 20px; background: #2196F3; border-radius: 4px;"></span>
+                        <span>Information / Pending</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="width: 20px; height: 20px; background: #FF9800; border-radius: 4px;"></span>
+                        <span>Warning / In Progress</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="width: 20px; height: 20px; background: #f44336; border-radius: 4px;"></span>
+                        <span>Error / Rejected / Critical</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="width: 20px; height: 20px; background: #9C27B0; border-radius: 4px;"></span>
+                        <span>Admin / System</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top: 30px;">
+                <div class="info-box-title">
+                    <i class="fas fa-book"></i>
+                    How to Use These Diagrams
+                </div>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>For New Team Members:</strong> Start with Login Flow, then explore role-specific journeys</li>
+                    <li><strong>For UI/UX Design:</strong> Use these as wireframe references for screen layouts</li>
+                    <li><strong>For Developers:</strong> Understand user workflows and data requirements</li>
+                    <li><strong>For Stakeholders:</strong> Review complete user journeys and business logic</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#2196F3',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#1976D2',
+                lineColor: '#90A4AE',
+                secondaryColor: '#4CAF50',
+                tertiaryColor: '#FF9800'
+            }
+        });
+
+        // Navigation active state
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function() {
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Scroll spy for navigation
+        window.addEventListener('scroll', function() {
+            let current = '';
+            const sections = document.querySelectorAll('.section');
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= (sectionTop - 100)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Show/hide scroll to top button
+            const scrollTop = document.getElementById('scrollTop');
+            if (window.pageYOffset > 300) {
+                scrollTop.classList.add('visible');
+            } else {
+                scrollTop.classList.remove('visible');
+            }
+        });
+
+        // Scroll to top function
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            const btn = document.querySelector('.theme-toggle');
+            btn.innerHTML = isDark
+                ? '<i class="fas fa-sun"></i><span>Light Mode</span>'
+                : '<i class="fas fa-moon"></i><span>Dark Mode</span>';
+
+            // Update Mermaid theme
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: isDark ? 'dark' : 'default'
+            });
+
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Load saved theme
+        window.addEventListener('load', function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                toggleTheme();
+            }
+        });
+
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        }
+
+        // Close sidebar on mobile when clicking a link
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('mobile-open');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

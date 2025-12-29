@@ -58,6 +58,19 @@ public class CreateContractRequest {
     @Schema(description = "Penalty ratio percentage (0-100)", example = "5.00", required = true)
     private BigDecimal penaltyRatio;
 
+    @NotNull(message = "Interest rate is required")
+    @DecimalMin(value = "0.00", message = "Interest rate must be at least 0")
+    @DecimalMax(value = "100.00", message = "Interest rate must not exceed 100")
+    @Digits(integer = 3, fraction = 2, message = "Interest rate must have at most 3 integer digits and 2 decimal places")
+    @Schema(description = "Annual interest rate percentage (0-100)", example = "12.50", required = true)
+    private BigDecimal interestRate;
+
+    @NotNull(message = "Maturity days is required")
+    @Min(value = 1, message = "Maturity days must be at least 1")
+    @Max(value = 365, message = "Maturity days must not exceed 365")
+    @Schema(description = "Number of days until maturity (1-365)", example = "30", required = true)
+    private Integer maturityDays;
+
     // ==================== Contract Metadata ====================
 
     @Size(max = 50, message = "Contract number must not exceed 50 characters")

@@ -44,6 +44,8 @@ class TripRepositoryTest {
     private RoleRepository roleRepository;
 
     private User testUser;
+    private User senderUser;
+    private User transporterUser;
     private Company testCompany;
     private Trip testTrip1;
     private Trip testTrip2;
@@ -80,13 +82,39 @@ class TripRepositoryTest {
                 .build();
         testUser = entityManager.persistAndFlush(testUser);
 
+        // Create sender user
+        senderUser = User.builder()
+                .firstName("Sender")
+                .lastName("User")
+                .email("sender@test.com")
+                .password("password123")
+                .phone("9876543211")
+                .active(true)
+                .company(testCompany)
+                .role(testRole)
+                .build();
+        senderUser = entityManager.persistAndFlush(senderUser);
+
+        // Create transporter user
+        transporterUser = User.builder()
+                .firstName("Transporter")
+                .lastName("User")
+                .email("transporter@test.com")
+                .password("password123")
+                .phone("9876543212")
+                .active(true)
+                .company(testCompany)
+                .role(testRole)
+                .build();
+        transporterUser = entityManager.persistAndFlush(transporterUser);
+
         // Create test trips
         testTrip1 = Trip.builder()
                 .pickup("Mumbai")
                 .destination("Delhi")
-                .sender("Sender A")
+                .sender(senderUser)
                 .receiver("Receiver A")
-                .transporter("Fast Logistics")
+                .transporter(transporterUser)
                 .loanAmount(new BigDecimal("100000"))
                 .interestRate(new BigDecimal("12.0"))
                 .maturityDays(30)
@@ -102,9 +130,9 @@ class TripRepositoryTest {
         testTrip2 = Trip.builder()
                 .pickup("Chennai")
                 .destination("Bangalore")
-                .sender("Sender B")
+                .sender(senderUser)
                 .receiver("Receiver B")
-                .transporter("Quick Transport")
+                .transporter(transporterUser)
                 .loanAmount(new BigDecimal("200000"))
                 .interestRate(new BigDecimal("10.0"))
                 .maturityDays(45)
@@ -120,9 +148,9 @@ class TripRepositoryTest {
         testTrip3 = Trip.builder()
                 .pickup("Mumbai")
                 .destination("Pune")
-                .sender("Sender C")
+                .sender(senderUser)
                 .receiver("Receiver C")
-                .transporter("Fast Logistics")
+                .transporter(transporterUser)
                 .loanAmount(new BigDecimal("50000"))
                 .interestRate(new BigDecimal("15.0"))
                 .maturityDays(15)

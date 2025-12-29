@@ -15,7 +15,7 @@ public interface ContractService {
 
     // ==================== CRUD Operations ====================
 
-    ContractResponse createContract(CreateContractRequest request);
+    ContractResponse createContract(CreateContractRequest request, Long createdByUserId);
 
     ContractResponse getContractById(Long id);
 
